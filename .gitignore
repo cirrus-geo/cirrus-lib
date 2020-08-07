@@ -1,0 +1,9 @@
+*.pyc
+*~
+*.egg-info
+dist/
+*.eggs
+.DS_Store
+.coverage
+.cache
+.idea

@@ -1,0 +1,68 @@
+{
+    "TableName": "cirrus-test-state",
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+        {
+            "AttributeName": "input_collections",
+            "KeyType": "HASH"
+        },
+        {
+            "AttributeName": "id",
+            "KeyType": "RANGE"
+        }
+    ],
+    "AttributeDefinitions": [
+        {
+            "AttributeName": "input_collections",
+            "AttributeType": "S"
+        },
+        {
+            "AttributeName": "id",
+            "AttributeType": "S"
+        },
+        {
+            "AttributeName": "output_collections",
+            "AttributeType": "S"
+        },
+        {
+            "AttributeName": "current_state",
+            "AttributeType": "S"
+        }
+    ],
+    "LocalSecondaryIndexes": [
+        {
+            "IndexName": "input_state",
+            "KeySchema": [
+                {
+                    "AttributeName": "input_collections",
+                    "KeyType": "HASH"
+                },
+                {   
+                    "AttributeName": "current_state",
+                    "KeyType": "RANGE"
+                }
+            ],
+            "Projection": {
+                "ProjectionType": "ALL"
+            }
+        }
+    ],
+    "GlobalSecondaryIndexes": [
+        {
+            "IndexName": "output_state",
+            "KeySchema": [
+                {
+                    "AttributeName": "output_collections",
+                    "KeyType": "HASH"
+                },
+                {   
+                    "AttributeName": "current_state",
+                    "KeyType": "RANGE"
+                }
+            ],
+            "Projection": {
+                "ProjectionType": "ALL"
+            }
+        }
+    ]
+}

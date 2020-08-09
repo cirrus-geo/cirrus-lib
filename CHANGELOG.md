@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [v0.1.1] - 2020-08-08
 
-## Changed
+### Changed
 - boto3-utils updated to 0.3.1
 
 ## [v0.1.0] - 2020-08-07

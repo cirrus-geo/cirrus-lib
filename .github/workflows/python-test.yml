@@ -5,7 +5,7 @@ jobs:
   build:
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        python-version: [3.7, 3.8]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,7 +31,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --statistics
       - name: Test with pytest
         env:
-          AWS_REGION: us-west-2
+          AWS_DEFAULT_REGION: us-west-2
         run: coverage run --source=. -m py.test
       - name: Upload coverage
         shell: pwsh

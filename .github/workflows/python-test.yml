@@ -1,4 +1,4 @@
-name: CI (pip)
+name: Python Test
 on: [push]
 
 jobs:

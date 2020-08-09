@@ -1,5 +1,5 @@
 try:
-    from __future__ import annotations
+    from cirruslib.future import annotations
 except:
     pass
 

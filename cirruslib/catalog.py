@@ -1,7 +1,4 @@
-try:
-    from cirruslib.future import annotations
-except:
-    pass
+from __future__ import annotations
 
 import boto3
 import json

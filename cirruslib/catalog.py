@@ -65,7 +65,7 @@ class Catalog(dict):
         assert(len(self['features']) > 0)
         for item in self['features']:
             if 'links' not in item:
-                item['links'] = []
+                item['links'] = [] 
 
         # Input collections
         if 'input_collections' not in self['process']:
@@ -75,7 +75,10 @@ class Catalog(dict):
         # generate ID
         collections_str = '/'.join(self['process']['input_collections'])
         items_str = '/'.join(sorted(list([i['id'] for i in self['features']])))
-        self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
+        if 'id' not in self:
+            self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
+
+        assert('workflow-' in self['id'])
 
         self.state_item = state_item
 

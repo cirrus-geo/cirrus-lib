@@ -77,6 +77,9 @@ class Catalog(dict):
 
         assert('workflow-' in self['id'])
 
+        # update collection IDs of member Items
+        self.assign_collections()
+
         self.state_item = state_item
 
     # assign collections to Items given a mapping of Col ID: ID regex

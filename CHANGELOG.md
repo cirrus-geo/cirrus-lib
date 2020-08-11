@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+- Catalog() now sets the collection IDs of all Items based on the contents of `process->output_options->collections`. This ensures any uploaded items in any task have the correct collection
+
 ## [v0.1.2] - 2020-08-10
 
 ### Changed

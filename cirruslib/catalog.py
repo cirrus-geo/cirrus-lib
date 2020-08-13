@@ -46,7 +46,7 @@ class Catalog(dict):
         assert(self['type'] == 'FeatureCollection')
         assert('process' in self)
         assert('output_options' in self['process'])
-        assert('collections' in self)
+        assert('collections' in self['process']['output_options'])
         assert('workflow' in self['process'])
 
         # convert old functions field to tasks
@@ -69,13 +69,21 @@ class Catalog(dict):
             cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
             self['process']['input_collections'] = cols if len(cols) != 0 else 'none'
 
+        logger.debug(f"Self: {json.dumps(self)}")
+
         # generate ID
         collections_str = '/'.join(self['process']['input_collections'])
         items_str = '/'.join(sorted(list([i['id'] for i in self['features']])))
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
 
+        logger.debug(f"id in self: {'id' in self}")
+        logger.debug(f"Self After: {json.dumps(self)}")
+
         assert('workflow-' in self['id'])
+
+        # update collection IDs of member Items
+        self.assign_collections()
 
         self.state_item = state_item
 

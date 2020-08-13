@@ -6,8 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.1.3] - 2020-08-13
+
 ### Changed
 - Catalog() now sets the collection IDs of all Items based on the contents of `process->output_options->collections`. This ensures any uploaded items in any task have the correct collection
+
+### Fixed
+- Validate for collections in process['output_options'] rather than top level which always failed
 
 ## [v0.1.2] - 2020-08-10
 
@@ -24,6 +29,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 Initial Release
 
 [Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/master...develop
+[v0.1.3]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.2...v0.1.3
 [v0.1.2]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/cirrus-geo/cirrus-lib.git@0.1.0

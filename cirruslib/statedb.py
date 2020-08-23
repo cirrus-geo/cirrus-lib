@@ -58,6 +58,45 @@ class StateDB:
         logger.debug(f"Created DynamoDB Item {catalog['id']}")
         return response
 
+    def add_item(self, catalog, execution):
+        """ Adds new item with state function execution """
+        now = datetime.now().isoformat()
+        opts = catalog['process']['output_options']
+        output_collections = '/'.join(sorted(opts['collections'].keys()))
+        key = self.catid_to_key(catalog['id'])
+        response = self.table.put_item(
+            Item={
+                'input_collections': key['input_collections'],
+                'id': key['id'],
+                'output_collections': output_collections,
+                'current_state': f"PROCESSING_{now}",
+                'created_at': now,
+                'execution': execution
+            }
+        )
+        logger.debug(f"Created DynamoDB Item {catalog['id']}")
+        return response
+
+    def add_failed_item(self, catalog, error_message):
+        """ Adds new item as failed """
+        """ Adds new item with state function execution """
+        now = datetime.now().isoformat()
+        opts = catalog['process']['output_options']
+        output_collections = '/'.join(sorted(opts['collections'].keys()))
+        key = self.catid_to_key(catalog['id'])
+        response = self.table.put_item(
+            Item={
+                'input_collections': key['input_collections'],
+                'id': key['id'],
+                'output_collections': output_collections,
+                'current_state': f"PROCESSING_{now}",
+                'created_at': now,
+                'error_message': error_message
+            }
+        )
+        logger.debug(f"Created DynamoDB Item {catalog['id']}")
+        return response        
+
     def delete_item(self, catid: str):
         key = self.catid_to_key(catid)
         response = self.table.delete_item(Key=key)

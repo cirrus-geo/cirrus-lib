@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+- Statedb.add_item function adds Item to DB with state=PROCESSING, must pass in Execution ARN
+- Statedb.add_failed_item function adds Item to DB with state=FAILED, must pass in error message
+- `process` Lambda added to consume from Cirrus Queue and start workflow (combines previous `validation` and `start-workflow` Lambdas)
+
+### Changed
+- Catalog no longer automatically adds fields as needed (e.g., a default process block, id), unless `update=True` is passed
+
 ## [v0.1.3] - 2020-08-13
 
 ### Changed

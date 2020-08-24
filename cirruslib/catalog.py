@@ -131,6 +131,8 @@ class Catalog(dict):
             url = os.path.join(get_path(item, opts.get('path_template')), f"{item['id']}.json")
             if url[0:5] != 's3://':
                 url = f"s3://{bucket}/{url.lstrip('/')}"
+            if public:
+                url = s3.s3_to_https(url)
 
             # add self link (and remove existing self link if present)
             item['links'] = [l for l in item['links'] if l['rel'] != 'self']

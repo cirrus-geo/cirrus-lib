@@ -134,13 +134,18 @@ class Catalog(dict):
             if public:
                 url = s3.s3_to_https(url)
 
-            # add self link (and remove existing self link if present)
+            # add canonical and self links (and remove existing self link if present)
             item['links'] = [l for l in item['links'] if l['rel'] != 'self']
+            item['links'].insert(0, {
+                'rel': 'canonical',
+                'href': url,
+                'type': 'application/json'
+            })
             item['links'].insert(0, {
                 'rel': 'self',
                 'href': url,
                 'type': 'application/json'
-            })
+            })            
 
             # get s3 session
             s3session = get_s3_session(s3url=url)

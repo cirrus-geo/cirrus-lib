@@ -372,25 +372,21 @@ class Catalogs(object):
         Args:
             catalog (Dict): A Cirrus Input Catalog
         """
+        catids = []
         # check existing states            
         states = self.get_states()
-        catalogs = []
         for cat in self.catalogs:
+            _replace = replace or cat['process'].get('replace', False)
             # check existing state for Item, if any
             state = states.get(cat['id'], '')
             # don't try and process these - if they are stuck they should be removed from db
             #if state in ['QUEUED', 'PROCESSING']:
             #    logger.info(f"Skipping {cat['id']}, in {state} state")
             #    continue
-            _replace = replace or cat['process'].get('replace', False)
             if state in ['FAILED', ''] or _replace:
-                catalogs.append(cat)
+                catids.append(cat.process())
             else:
                 logger.info(f"Skipping {cat['id']}, in {state} state")
                 continue
 
-        # add to database, to s3, then to queue
-        catids = []
-        for catalog in catalogs:
-            catids.append(catalog.process())
         return catids

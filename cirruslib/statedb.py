@@ -89,7 +89,7 @@ class StateDB:
                 'input_collections': key['input_collections'],
                 'id': key['id'],
                 'output_collections': output_collections,
-                'current_state': f"PROCESSING_{now}",
+                'current_state': f"FAILED_{now}",
                 'created_at': now,
                 'error_message': error_message
             }

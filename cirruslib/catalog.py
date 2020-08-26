@@ -11,13 +11,13 @@ from boto3utils import s3
 from cirruslib.statedb import StateDB
 from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
+from traceback import format_exc
 from typing import Dict, Optional, List
 
 # envvars
 LOG_LEVEL = os.getenv('CIRRUS_LOG_LEVEL', 'INFO')
 DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET', None)
-PROCESS_QUEUE = os.getenv('CIRRUS_PROCESS_QUEUE', None)
 PUBLISH_TOPIC_ARN = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
 
 logger = logging.getLogger(__name__)
@@ -25,16 +25,13 @@ logger.setLevel(LOG_LEVEL)
 
 # clients
 statedb = StateDB()
-sqsclient = boto3.client('sqs')
 snsclient = boto3.client('sns')
-sqs_url = None
-if PROCESS_QUEUE:
-    sqs_url = sqsclient.get_queue_url(QueueName=PROCESS_QUEUE)['QueueUrl']
+stepfunctions = boto3.client('stepfunctions')
 
 
 class Catalog(dict):
 
-    def __init__(self, *args, state_item=None, **kwargs):
+    def __init__(self, *args, update=False, state_item=None, **kwargs):
         """Initialize a Catalog, verify required fields, and assign an ID
 
         Args:
@@ -42,18 +39,17 @@ class Catalog(dict):
         """
         super(Catalog, self).__init__(*args, **kwargs)
 
+        if update:
+            self.update()
+
         # validate process block
         assert(self['type'] == 'FeatureCollection')
         assert('process' in self)
         assert('output_options' in self['process'])
         assert('collections' in self['process']['output_options'])
         assert('workflow' in self['process'])
-
-        # convert old functions field to tasks
-        if 'functions' in self['process']:
-            self['process']['tasks'] = self['process'].pop('functions')
-
         assert('tasks' in self['process'])
+        assert('workflow-' in self['id'])
 
         # TODO - validate with a JSON schema
         #if schema:
@@ -64,12 +60,21 @@ class Catalog(dict):
             if 'links' not in item:
                 item['links'] = [] 
 
+        # update collection IDs of member Items
+        self.assign_collections()
+
+        self.state_item = state_item
+
+    def update(self):
+
+        # convert old functions field to tasks
+        if 'functions' in self['process']:
+            self['process']['tasks'] = self['process'].pop('functions')
+
         # Input collections
         if 'input_collections' not in self['process']:
             cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
             self['process']['input_collections'] = cols if len(cols) != 0 else 'none'
-
-        logger.debug(f"Self: {json.dumps(self)}")
 
         # generate ID
         collections_str = '/'.join(self['process']['input_collections'])
@@ -77,15 +82,8 @@ class Catalog(dict):
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
 
-        logger.debug(f"id in self: {'id' in self}")
-        logger.debug(f"Self After: {json.dumps(self)}")
+        logger.debug(f"Catalog after validate_and_update: {json.dumps(self)}")
 
-        assert('workflow-' in self['id'])
-
-        # update collection IDs of member Items
-        self.assign_collections()
-
-        self.state_item = state_item
 
     # assign collections to Items given a mapping of Col ID: ID regex
     def assign_collections(self):
@@ -133,14 +131,21 @@ class Catalog(dict):
             url = os.path.join(get_path(item, opts.get('path_template')), f"{item['id']}.json")
             if url[0:5] != 's3://':
                 url = f"s3://{bucket}/{url.lstrip('/')}"
+            if public:
+                url = s3.s3_to_https(url)
 
-            # add self link (and remove existing self link if present)
+            # add canonical and self links (and remove existing self link if present)
             item['links'] = [l for l in item['links'] if l['rel'] != 'self']
+            item['links'].insert(0, {
+                'rel': 'canonical',
+                'href': url,
+                'type': 'application/json'
+            })
             item['links'].insert(0, {
                 'rel': 'self',
                 'href': url,
                 'type': 'application/json'
-            })
+            })            
 
             # get s3 session
             s3session = get_s3_session(s3url=url)
@@ -212,45 +217,36 @@ class Catalog(dict):
             logger.debug(f"Response: {json.dumps(response)}")           
 
     def process(self) -> str:
-        """Add this catalog to procesing queue
+        """Add this Catalog to Cirrus and start workflow
 
         Returns:
             str: Catalog ID
         """
         assert(CATALOG_BUCKET)
-        assert(sqs_url)
 
-        # create DynamoDB record - this will always overwrite any existing process
+        # start workflow
         try:
-            statedb.create_item(self) 
-        except Exception as err:
-            msg = f"Error adding {self['id']} to database ({err})"
-            logger.error(msg)
-            return
-
-        try:
+            # add input catalog to s3
             url = f"s3://{CATALOG_BUCKET}/{self['id']}/input.json"
             s3().upload_json(self, url)
             logger.debug(f"Uploaded {url}")
-        except Exception as err:
-            msg = f"Error adding {self['id']} input catalog to s3 ({err})"
-            logger.error(msg)
-            return
 
-        try:
-            response = sqsclient.send_message(
-                QueueUrl = sqs_url,
-                MessageBody = json.dumps(self)
-            )
-            # TODO - check response
-            logger.info(f"Queued {self['id']}")
+            # invoke step function
+            arn = os.getenv('BASE_WORKFLOW_ARN') + self['process']['workflow']
+            logger.info(f"Running {arn} on {self['id']}")
+            exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
+            logger.debug(f"Start execution response: {exe_response}")
+
+            # create DynamoDB record - this will always overwrite any existing process
+            resp = statedb.add_item(self, exe_response['executionArn'])
+            logger.debug(f"Add state item response: {resp}")
+            
             return self['id']
         except Exception as err:
-            msg = f"queue: error queuing {self['id']} ({err})"
+            msg = f"process: failed starting {self['id']} ({err})"
             logger.error(msg)
-            statedb.set_failed(self['id'], msg)    
-
-        return self['id'] 
+            logger.error(format_exc())
+            statedb.add_failed_item(self, msg)
 
 
 class Catalogs(object):
@@ -376,25 +372,21 @@ class Catalogs(object):
         Args:
             catalog (Dict): A Cirrus Input Catalog
         """
+        catids = []
         # check existing states            
         states = self.get_states()
-        catalogs = []
         for cat in self.catalogs:
+            _replace = replace or cat['process'].get('replace', False)
             # check existing state for Item, if any
             state = states.get(cat['id'], '')
             # don't try and process these - if they are stuck they should be removed from db
             #if state in ['QUEUED', 'PROCESSING']:
             #    logger.info(f"Skipping {cat['id']}, in {state} state")
             #    continue
-            _replace = replace or cat['process'].get('replace', False)
             if state in ['FAILED', ''] or _replace:
-                catalogs.append(cat)
+                catids.append(cat.process())
             else:
                 logger.info(f"Skipping {cat['id']}, in {state} state")
                 continue
 
-        # add to database, to s3, then to queue
-        catids = []
-        for catalog in catalogs:
-            catids.append(catalog.process())
         return catids

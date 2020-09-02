@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.3.0] - 2020-09-02
+
+### Changed
+- Catalog.from_payload will get output payload from Batch via a separate file "<original-payload>\_out.json" rather than the original, as of Cirrus 0.2.0 Batch processes will write output to this new file rather than overwriting the input file
+
 ## [v0.2.1] - 2020-09-02
 
 ### Fixed
@@ -44,6 +49,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 Initial Release
 
 [Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/master...develop
+[v0.3.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.2.1...v0.3.0
 [v0.2.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.3...v0.2.0
 [v0.1.3]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.2...v0.1.3

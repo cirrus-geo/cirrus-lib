@@ -135,7 +135,7 @@ class Catalog(dict):
                 url = s3.s3_to_https(url)
 
             # add canonical and self links (and remove existing self link if present)
-            item['links'] = [l for l in item['links'] if l['rel'] != 'self']
+            item['links'] = [l for l in item['links'] if l['rel'] not in ['self', 'canonical']]
             item['links'].insert(0, {
                 'rel': 'canonical',
                 'href': url,

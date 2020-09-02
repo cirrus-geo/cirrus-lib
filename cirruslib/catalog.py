@@ -292,7 +292,9 @@ class Catalogs(object):
         elif 'url' in payload:
             catalogs = [Catalog(s3().read_json(payload['url']))]
         elif 'Parameters' in payload and 'url' in payload['Parameters']:
-            catalogs = [Catalog(s3().read_json(payload['Parameters']['url']))]
+            # this is Batch, get the output payload
+            url = payload['Parameters']['url'].replace('.json', '_out.json')
+            catalogs = [Catalog(s3().read_json(url))]
         else:
             catalogs = [Catalog(payload)]
         return cls(catalogs)

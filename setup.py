@@ -21,7 +21,7 @@ setup(
     version=__version__,
     description='Cirrus Library',
     url='https://github.com/cirrus-geo/cirrus-lib.git',
-    license='MIT',
+    license='Apache-2.0',
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',

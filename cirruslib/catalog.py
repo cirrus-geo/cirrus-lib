@@ -46,7 +46,6 @@ class Catalog(dict):
         assert(self['type'] == 'FeatureCollection')
         assert('process' in self)
         assert('output_options' in self['process'])
-        assert('collections' in self['process']['output_options'])
         assert('workflow' in self['process'])
         assert('tasks' in self['process'])
         assert('workflow-' in self['id'])
@@ -90,7 +89,7 @@ class Catalog(dict):
         """Assign new collections to all Items (features) in Catalog
             based on self['process']['output_options']['collections']
         """
-        collections = self['process']['output_options']['collections']
+        collections = self['process']['output_options'].get('collections', {})
         for item in self['features']:
             for col in collections:
                 regex = re.compile(collections[col])

@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Fixed
+- `process` function will reraise any error occuring while setting up processing so can be retried with redrivepolicy
+
 ## [v0.3.0] - 2020-09-02
 
 ### Changed

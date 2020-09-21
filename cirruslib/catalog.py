@@ -90,7 +90,9 @@ class Catalog(dict):
             based on self['process']['output_options']['collections']
         """
         collections = self['process']['output_options'].get('collections', {})
+        # loop through all Items in Catalog
         for item in self['features']:
+            # loop through all provided output collections regexs
             for col in collections:
                 regex = re.compile(collections[col])
                 if regex.match(item['id']):
@@ -246,6 +248,7 @@ class Catalog(dict):
             logger.error(msg)
             logger.error(format_exc())
             statedb.add_failed_item(self, msg)
+            raise err
 
 
 class Catalogs(object):

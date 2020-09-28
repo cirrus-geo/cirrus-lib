@@ -46,7 +46,6 @@ class Catalog(dict):
         assert(self['type'] == 'FeatureCollection')
         assert('process' in self)
         assert('output_options' in self['process'])
-        assert('collections' in self['process']['output_options'])
         assert('workflow' in self['process'])
         assert('tasks' in self['process'])
         assert('workflow-' in self['id'])
@@ -90,8 +89,10 @@ class Catalog(dict):
         """Assign new collections to all Items (features) in Catalog
             based on self['process']['output_options']['collections']
         """
-        collections = self['process']['output_options']['collections']
+        collections = self['process']['output_options'].get('collections', {})
+        # loop through all Items in Catalog
         for item in self['features']:
+            # loop through all provided output collections regexs
             for col in collections:
                 regex = re.compile(collections[col])
                 if regex.match(item['id']):
@@ -247,6 +248,7 @@ class Catalog(dict):
             logger.error(msg)
             logger.error(format_exc())
             statedb.add_failed_item(self, msg)
+            raise err
 
 
 class Catalogs(object):

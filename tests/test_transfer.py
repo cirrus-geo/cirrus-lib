@@ -47,12 +47,12 @@ class Test(unittest.TestCase):
         assert(buckets['Buckets'][0]['Name'] == testbucket)
 
     def test_download_from_http(self):
-        url = 'https://raw.githubusercontent.com/matthewhanson/boto3-utils/master/README.md'
+        url = 'https://raw.githubusercontent.com/cirrus-geo/cirrus/master/README.md'
         fname = transfer.download_from_http(url, path=testpath)
         assert(os.path.exists(fname))
         with open(fname) as f:
             lines = f.readlines()
-        assert('boto3-utils') in lines[-1]
+        assert('Cirrus') in lines[0]
 
     def test_download_item_assets(self):
         item = self.get_test_item()

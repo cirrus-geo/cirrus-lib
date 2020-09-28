@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.3.1] - 2020-09-27
+
+### Changed
+- output_options->collections is now optional, if not provided than item collections are not updated
+
 ### Fixed
 - `process` function will reraise any error occuring while setting up processing so can be retried with redrivepolicy
 
@@ -52,6 +57,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 Initial Release
 
 [Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/master...develop
+[v0.3.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.2.1...v0.3.0
 [v0.2.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.2.0...v0.2.1
 [v0.2.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.3...v0.2.0

@@ -22,7 +22,6 @@ PUBLISH_TOPIC = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
 # root catalog
 ROOT_URL = f"s3://{DATA_BUCKET}"
 PUBLIC_ROOT_URL = s3.s3_to_https(ROOT_URL, region=AWS_REGION)
-ROOT_CATALOG = get_root_catalog()
 
 # boto3 clients
 snsclient = boto3.client('sns')
@@ -85,3 +84,6 @@ def add_collections(collections, publish=True):
         ROOT_CATALOG.normalize_and_save(ROOT_URL, CatalogType.ABSOLUTE_PUBLISHED)    
 
     return ROOT_CATALOG
+
+
+ROOT_CATALOG = get_root_catalog()

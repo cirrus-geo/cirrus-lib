@@ -15,7 +15,7 @@ logger.setLevel(os.getenv('CIRRUS_LOG_LEVEL', 'INFO'))
 # envvars
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET')
 
-STATES = ['QUEUED', 'PROCESSING', 'COMPLETED', 'FAILED', 'INVALID']
+STATES = ['PROCESSING', 'COMPLETED', 'FAILED', 'INVALID']
 INDEX_KEYS = {
     'input_state': 'input_collections',
     'output_state': 'output_collections'
@@ -35,12 +35,12 @@ class StateDB:
         self.table_name = table_name
         self.table = self.db.Table(table_name)
 
-    def create_item(self, catalog: Dict, state: str='QUEUED'):
+    def create_item(self, catalog: Dict, state: str='PROCESSING'):
         """Create an item in DynamoDB
 
         Args:
             catalog (Dict): A Cirrus Input Catalog
-            state (str, optional): Set items to this state. Defaults to 'QUEUED'.
+            state (str, optional): Set items to this state. Defaults to 'PROCESSING'.
         """
         now = datetime.now().isoformat()
         opts = catalog['process']['output_options']
@@ -199,7 +199,7 @@ class StateDB:
 
         Args:
             collection (str): /-separated list of collections (input or output depending on index)
-            state (str): State of Items to get (QUEUED, PROCESSING, COMPLETED, FAILED, INVALID)
+            state (str): State of Items to get (PROCESSING, COMPLETED, FAILED, INVALID)
             since (Optional[str], optional): Get Items since this amount of time in the past. Defaults to None.
             index (str, optional): Query this index (input_state or output_state). Defaults to 'input_state'.
 
@@ -254,7 +254,7 @@ class StateDB:
             catid (str): The catalog ID
 
         Returns:
-            str: Current state: QUEUED, PROCESSING, COMPLETED, FAILED, INVALID
+            str: Current state: PROCESSING, COMPLETED, FAILED, INVALID
         """
         response = self.table.get_item(Key=self.catid_to_key(catid))
         if 'Item' in response:

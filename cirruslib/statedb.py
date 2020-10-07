@@ -117,7 +117,7 @@ class StateDB:
         """
         try:
             response = self.table.get_item(Key=self.catid_to_key(catid))
-            logger.debug(f"Fetched {response['Item']}")
+            #logger.debug(f"Fetched {response['Item']}")
             return response['Item']
         except Exception as err:
             logger.info(f"Error fetching item {catid}: {err}")
@@ -238,10 +238,10 @@ class StateDB:
         """
         resp = self.get_items_page(*args, **kwargs)
         items = resp['items']
-        logger.debug(f"Fetched page of {len(items)} items from statedb")
+        #logger.debug(f"Fetched page of {len(items)} items from statedb")
         while 'nextkey' in resp and (limit is None or len(items) < limit):
             resp = self.get_items_page(*args, nextkey=resp['nextkey'], **kwargs)
-            logger.debug(f"Fetched page of {len(resp['items'])} items from statedb")
+            #logger.debug(f"Fetched page of {len(resp['items'])} items from statedb")
             items += resp['items']
         if limit is None or len(items) < limit:
             return items

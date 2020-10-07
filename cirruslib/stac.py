@@ -21,7 +21,8 @@ PUBLISH_TOPIC = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
 
 # root catalog
 ROOT_URL = f"s3://{DATA_BUCKET}"
-PUBLIC_ROOT_URL = s3.s3_to_https(ROOT_URL, region=AWS_REGION)
+if PUBLIC_CATALOG:
+    ROOT_URL = s3.s3_to_https(ROOT_URL, region=AWS_REGION)
 
 # boto3 clients
 snsclient = boto3.client('sns')
@@ -56,10 +57,7 @@ def get_root_catalog():
     else:
         catid = DATA_BUCKET.split('-data-')[0]
         cat = Catalog(id=catid, description=DESCRIPTION)
-        if PUBLIC_CATALOG:
-            cat.normalize_and_save(PUBLIC_ROOT_URL, CatalogType.ABSOLUTE_PUBLISHED)
-        else:
-            cat.normalize_and_save(ROOT_URL, CatalogType.ABSOLUTE_PUBLISHED)
+        cat.normalize_and_save(ROOT_URL, CatalogType.ABSOLUTE_PUBLISHED)
     logger.debug(f"Fetched {cat.describe()}")
     return cat
 
@@ -76,13 +74,9 @@ def add_collections(collections, publish=True):
             child_json = json.dumps(collection.to_dict())
             logger.debug(f"Publishing {collection.id}: {child_json}")
             response = snsclient.publish(TopicArn=PUBLISH_TOPIC, Message=child_json)
-            logger.debug(f"SNS Publish response: {json.dumps(response)}")       
-
-    if PUBLIC_CATALOG:
-        ROOT_CATALOG.normalize_and_save(PUBLIC_ROOT_URL, CatalogType.ABSOLUTE_PUBLISHED)
-    else:
-        ROOT_CATALOG.normalize_and_save(ROOT_URL, CatalogType.ABSOLUTE_PUBLISHED)    
-
+            logger.debug(f"SNS Publish response: {json.dumps(response)}")
+ 
+    ROOT_CATALOG.normalize_and_save(ROOT_URL, CatalogType.ABSOLUTE_PUBLISHED)
     return ROOT_CATALOG
 
 

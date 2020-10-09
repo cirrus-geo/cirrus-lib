@@ -4,7 +4,7 @@ import os
 
 from boto3utils import s3
 from boto3.dynamodb.conditions import Key
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from logging import getLogger
 from traceback import format_exc
 from typing import Dict, Optional, List
@@ -42,7 +42,7 @@ class StateDB:
             catalog (Dict): A Cirrus Input Catalog
             state (str, optional): Set items to this state. Defaults to 'PROCESSING'.
         """
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
         output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
@@ -60,7 +60,7 @@ class StateDB:
 
     def add_item(self, catalog, execution):
         """ Adds new item with state function execution """
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
         output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
@@ -80,7 +80,7 @@ class StateDB:
     def add_failed_item(self, catalog, error_message):
         """ Adds new item as failed """
         """ Adds new item with state function execution """
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
         output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
@@ -292,7 +292,7 @@ class StateDB:
             Key=self.catid_to_key(catid),
             UpdateExpression='SET current_state=:p, execution=:exe',
             ExpressionAttributeValues={
-                ':p': f"PROCESSING_{datetime.now().isoformat()}",
+                ':p': f"PROCESSING_{datetime.now(timezone.utc).isoformat()}",
                 ':exe': execution
             }
         )
@@ -312,7 +312,7 @@ class StateDB:
             Key=self.catid_to_key(catid),
             UpdateExpression='SET current_state=:p, output_urls=:urls',
             ExpressionAttributeValues={
-                ':p': f"COMPLETED_{datetime.now().isoformat()}",
+                ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}",
                 ':urls': urls
             }
         )
@@ -332,7 +332,7 @@ class StateDB:
             Key=self.catid_to_key(catid),
             UpdateExpression='SET current_state=:p, error_message=:err',
             ExpressionAttributeValues={
-                ':p': f"FAILED_{datetime.now().isoformat()}",
+                ':p': f"FAILED_{datetime.now(timezone.utc).isoformat()}",
                 ':err': msg
             }
         )
@@ -352,7 +352,7 @@ class StateDB:
             Key=self.catid_to_key(catid),
             UpdateExpression='SET current_state=:p, error_message=:err',
             ExpressionAttributeValues={
-                ':p': f"INVALID_{datetime.now().isoformat()}",
+                ':p': f"INVALID_{datetime.now(timezone.utc).isoformat()}",
                 ':err': msg
             }
         )
@@ -374,9 +374,9 @@ class StateDB:
         """
         expr = Key(INDEX_KEYS[index]).eq(collection)
         if state and since:
-            start = datetime.now() - self.since_to_timedelta(since)
+            start = datetime.now(timezone.utc) - self.since_to_timedelta(since)
             begin = f"{state}_{start.isoformat()}"
-            end = f"{state}_{datetime.now().isoformat()}"
+            end = f"{state}_{datetime.now(timezone.utc).isoformat()}"
             expr = expr & Key('current_state').between(begin, end)
         elif state:
             expr = expr & Key('current_state').begins_with(state)

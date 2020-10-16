@@ -39,6 +39,10 @@ class Catalog(dict):
         """
         super(Catalog, self).__init__(*args, **kwargs)
 
+        # convert old functions field to tasks
+        if 'functions' in self['process']:
+            self['process']['tasks'] = self['process'].pop('functions')
+
         if update:
             self.update()
 
@@ -65,10 +69,6 @@ class Catalog(dict):
         self.state_item = state_item
 
     def update(self):
-
-        # convert old functions field to tasks
-        if 'functions' in self['process']:
-            self['process']['tasks'] = self['process'].pop('functions')
 
         # Input collections
         if 'input_collections' not in self['process']:
@@ -212,10 +212,9 @@ class Catalog(dict):
             topic_arn (str, optional): ARN of SNS Topic. Defaults to PUBLISH_TOPIC_ARN.
         """
         for item in self['features']:
-            logger.info(f"Publishing item {item['id']} to {topic_arn}")
+            logger.debug(f"Publishing item {item['id']} to {topic_arn}")
             response = snsclient.publish(TopicArn=topic_arn, Message=json.dumps(item),
-                                        MessageAttributes=self.sns_attributes(item))
-            logger.debug(f"Response: {json.dumps(response)}")           
+                                        MessageAttributes=self.sns_attributes(item))         
 
     def process(self) -> str:
         """Add this Catalog to Cirrus and start workflow
@@ -234,13 +233,11 @@ class Catalog(dict):
 
             # invoke step function
             arn = os.getenv('BASE_WORKFLOW_ARN') + self['process']['workflow']
-            logger.info(f"Running {arn} on {self['id']}")
+            logger.debug(f"Running {arn} on {self['id']}")
             exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
-            logger.debug(f"Start execution response: {exe_response}")
 
             # create DynamoDB record - this will always overwrite any existing process
             resp = statedb.add_item(self, exe_response['executionArn'])
-            logger.debug(f"Add state item response: {resp}")
             
             return self['id']
         except Exception as err:

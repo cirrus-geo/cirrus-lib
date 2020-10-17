@@ -6,13 +6,15 @@ import logging
 import os
 import re
 import uuid
+from traceback import format_exc
+from typing import Dict, Optional, List
 
 from boto3utils import s3
 from cirruslib.statedb import StateDB
 from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
-from traceback import format_exc
-from typing import Dict, Optional, List
+from pythonjsonlogger import jsonlogger
+
 
 # envvars
 LOG_LEVEL = os.getenv('CIRRUS_LOG_LEVEL', 'INFO')
@@ -38,6 +40,15 @@ class Catalog(dict):
             state_item (Dict, optional): Dictionary of entry in StateDB. Defaults to None.
         """
         super(Catalog, self).__init__(*args, **kwargs)
+
+        # setup logger
+        logger = logging.getLogger(__name__)
+        syslog = logging.StreamHandler()
+        formatter = formatter = jsonlogger.JsonFormatter()
+        syslog.setFormatter(formatter)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(syslog)
+        self.logger = logging.LoggerAdapter(logger, self)
 
         # convert old functions field to tasks
         if 'functions' in self['process']:

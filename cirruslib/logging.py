@@ -27,13 +27,14 @@ config = {
       "": {
           "handlers": ["standard"],
           "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
+      },
+      "botocore": {
+          "propagate": False
       }
   }
 }
 
 logging.config.dictConfig(config)
-
-logger = logging.getLogger(__name__)
 
 
 class DynamicLoggerAdapter(logging.LoggerAdapter):

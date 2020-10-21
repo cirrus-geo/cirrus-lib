@@ -11,10 +11,12 @@ from typing import Dict, Optional, List
 
 from boto3utils import s3
 from cirruslib.statedb import StateDB
-from cirruslib.logging import logger, DynamicLoggerAdapter
+from cirruslib.logging import DynamicLoggerAdapter
 from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
 from pythonjsonlogger import jsonlogger
+
+logger = logging.getLogger(__name__)
 
 
 # envvars

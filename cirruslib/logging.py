@@ -5,7 +5,7 @@ from os import getenv
 
 config = {
   "version": 1,
-  "disable_existing_loggers": False,
+  "disable_existing_loggers": True,
   "formatters": {
       "standard": {
           "format": "%(asctime)s %(name)s %(levelname)s %(message)s",

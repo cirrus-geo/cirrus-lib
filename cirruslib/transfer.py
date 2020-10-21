@@ -49,7 +49,9 @@ def get_s3_session(bucket: str=None, s3url: str=None, **kwargs) -> s3:
         creds.update(_creds)
         logger.debug(f"Using credentials for bucket {bucket}: {json.dumps(creds)}")
     except ClientError:
-        logger.debug(f"Using default credentials for bucket {bucket}")
+        # using default credentials
+        pass
+        
 
     requester_pays = creds.pop('requester_pays', False)
     session = boto3.Session(**creds)
@@ -168,7 +170,7 @@ def upload_item_assets(item: Dict, assets: List[str]=None, public_assets: List[s
         s3_session = get_s3_session(parts['bucket'])
 
         # upload
-        logger.info(f"Uploading {filename} to {url}")
+        logger.debug(f"Uploading {filename} to {url}")
         url_out = s3_session.upload(filename, url, public=public, extra=_headers, http_url=not s3_urls)
         _item['assets'][key]['href'] = url_out
     return _item

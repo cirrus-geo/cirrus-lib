@@ -1,0 +1,38 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "id": "tiles-32-R-MS-2020-10-20-0",
+            "collection": "sentinel-s2-l2a-aws",
+            "properties": {},
+            "assets": {
+                "json": {
+                    "href": "https://roda.sentinel-hub.com/sentinel-s2-l2a/tiles/32/R/MS/2020/10/20/0/tileInfo.json"
+                }
+            },
+            "links": []
+        }
+    ],
+    "process": {
+        "description": "Convert Original Sentinel-2 metadata to STAC and publish",
+        "input_collections": [
+            "sentinel-s2-l2a-aws"
+        ],
+        "workflow": "publish-sentinel",
+        "output_options": {
+            "path_template": "/${collection}/${sentinel:utm_zone}/${sentinel:latitude_band}/${sentinel:grid_square}/${year}/${month}/${id}",
+            "collections": {
+                "sentinel-s2-l1c": ".*L1C",
+                "sentinel-s2-l2a": ".*L2A"
+            }
+        },
+        "tasks": {
+            "publish": {
+                "public": true
+            }
+        },
+        "replace": false
+    },
+    "id": "sentinel-s2-l2a-aws/workflow-publish-sentinel/tiles-32-R-MS-2020-10-20-0"
+}

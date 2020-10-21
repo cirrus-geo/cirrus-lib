@@ -10,8 +10,8 @@ from traceback import format_exc
 from typing import Dict, Optional, List
 
 from boto3utils import s3
-from cirruslib import StateDB, logger
-from cirruslib.logging import DynamicLoggerAdapter
+from cirruslib.statedb import StateDB
+from cirruslib.logging import logger, DynamicLoggerAdapter
 from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
 from pythonjsonlogger import jsonlogger

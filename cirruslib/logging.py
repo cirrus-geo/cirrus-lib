@@ -24,12 +24,13 @@ config = {
       }
   },
   "loggers": {
-      "": {
+      "lambda_function": {
           "handlers": ["standard"],
           "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
       },
-      "botocore": {
-          "propagate": False
+      "cirruslib": {
+          "handlers": ["standard"],
+          "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
       }
   }
 }

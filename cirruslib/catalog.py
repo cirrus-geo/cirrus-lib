@@ -10,20 +10,17 @@ from traceback import format_exc
 from typing import Dict, Optional, List
 
 from boto3utils import s3
-from cirruslib.statedb import StateDB
+from cirruslib import StateDB, logger
+from cirruslib.logging import DynamicLoggerAdapter
 from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
 from pythonjsonlogger import jsonlogger
 
 
 # envvars
-LOG_LEVEL = os.getenv('CIRRUS_LOG_LEVEL', 'INFO')
 DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET', None)
 PUBLISH_TOPIC_ARN = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
 
 # clients
 statedb = StateDB()
@@ -41,14 +38,7 @@ class Catalog(dict):
         """
         super(Catalog, self).__init__(*args, **kwargs)
 
-        # setup logger
-        logger = logging.getLogger(__name__)
-        syslog = logging.StreamHandler()
-        formatter = formatter = jsonlogger.JsonFormatter()
-        syslog.setFormatter(formatter)
-        logger.setLevel(logging.INFO)
-        logger.addHandler(syslog)
-        self.logger = logging.LoggerAdapter(logger, self)
+        self.logger = DynamicLoggerAdapter(logger, self, keys=['id', 'stac_version'])
 
         # convert old functions field to tasks
         if 'functions' in self['process']:

@@ -71,8 +71,37 @@ class Catalog(dict):
 
         self.state_item = state_item
 
-    def update(self):
+    @classmethod
+    def from_payload(cls, payload: Dict, **kwargs) -> Catalog:
+        """Parse a Cirrus payload and return a Catalog instance
 
+        Args:
+            payload (Dict): A payload from SNS, SQS, or containing an s3 URL to payload
+
+        Returns:
+            Catalog: A Catalog instance
+        """
+        if 'Records' in payload:
+            records = [json.loads(r['body']) for r in payload['Records']]
+            # there should be only one
+            assert(len(records) == 1)
+            if 'Message' in records[0]:
+                # SNS
+                cat = json.loads(records[0]['Message'])
+            else:
+                # SQS
+                cat = records[0]
+        elif 'url' in payload:
+            cat = s3().read_json(payload['url'])
+        elif 'Parameters' in payload and 'url' in payload['Parameters']:
+            # this is Batch, get the output payload
+            url = payload['Parameters']['url'].replace('.json', '_out.json')
+            cat = s3().read_json(url)
+        else:
+            cat = payload
+        return cls(cat)
+
+    def update(self):
         # Input collections
         if 'input_collections' not in self['process']:
             cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
@@ -270,36 +299,6 @@ class Catalogs(object):
             List[str]: List of Catalog IDs
         """
         return [c['id'] for c in self.catalogs]
-
-    @classmethod
-    def from_payload(cls, payload: Dict, **kwargs) -> Catalogs:
-        """Parse a Cirrus payload and return a Catalogs instance
-
-        Args:
-            payload (Dict): A payload from SNS, SQS, or containing an s3 URL to payload
-
-        Returns:
-            Catalogs: A Catalogs instance
-        """
-        catalogs = []
-        if 'Records' in payload:
-            for record in [json.loads(r['body']) for r in payload['Records']]:
-                if 'Message' in record:
-                    # SNS
-                    cat = Catalog(json.loads(record['Message']))
-                    catalogs.append(cat)
-                else:
-                    # SQS
-                    catalogs.append(Catalog(record))
-        elif 'url' in payload:
-            catalogs = [Catalog(s3().read_json(payload['url']))]
-        elif 'Parameters' in payload and 'url' in payload['Parameters']:
-            # this is Batch, get the output payload
-            url = payload['Parameters']['url'].replace('.json', '_out.json')
-            catalogs = [Catalog(s3().read_json(url))]
-        else:
-            catalogs = [Catalog(payload)]
-        return cls(catalogs)
 
     @classmethod
     def from_catids(cls, catids: List[str], **kwargs) -> Catalogs:

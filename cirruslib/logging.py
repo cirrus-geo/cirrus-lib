@@ -31,6 +31,14 @@ config = {
           "handlers": ["standard"],
           "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
       },
+      "feeder": {
+          "handlers": ["standard"],
+          "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
+      },
+      "task": {
+          "handlers": ["standard"],
+          "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
+      },
       "cirruslib": {
           "handlers": ["standard"],
           "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')

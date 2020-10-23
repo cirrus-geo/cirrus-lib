@@ -25,6 +25,13 @@ config = {
   },
   "loggers": {
       "": {
+          "handlers": ["standard"],
+          "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
+      },
+      "botocore": {
+          "propagate": False
+      },
+      "boto3": {
           "propagate": False
       },
       "lambda_function": {

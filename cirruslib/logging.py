@@ -27,12 +27,6 @@ config = {
       "": {
           "propagate": False
       },
-      "botocore": {
-          "propagate": False
-      },
-      "boto3": {
-          "propagate": False
-      },
       "lambda_function": {
           "handlers": ["standard"],
           "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
@@ -67,3 +61,10 @@ class DynamicLoggerAdapter(logging.LoggerAdapter):
             return (msg, {"extra": kwargs})
         else:
             return (msg, kwargs)
+
+
+def get_task_logger(*args, catalog, **kwargs):
+    _logger = logging.getLogger(*args, **kwargs)
+    logger = DynamicLoggerAdapter(_logger, catalog, keys=['id', 'stac_version'])
+    return logger
+    

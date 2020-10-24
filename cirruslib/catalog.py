@@ -40,14 +40,14 @@ class Catalog(dict):
         """
         super(Catalog, self).__init__(*args, **kwargs)
 
-        self.logger = DynamicLoggerAdapter(logger, self, keys=['id', 'stac_version'])
-
         # convert old functions field to tasks
         if 'functions' in self['process']:
             self['process']['tasks'] = self['process'].pop('functions')
 
         if update:
             self.update()
+
+        self.logger = DynamicLoggerAdapter(logger, self, keys=['id', 'stac_version'])
 
         # validate process block
         assert(self['type'] == 'FeatureCollection')

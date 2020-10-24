@@ -13,7 +13,6 @@ from cirruslib.utils import get_path
 from typing import Dict, Optional, List
 
 logger = logging.getLogger(__name__)
-logger.setLevel(getenv('CIRRUS_LOG_LEVEL', 'INFO'))
 
 # get data bucket to upload to
 DATA_BUCKET = getenv('CIRRUS_DATA_BUCKET')

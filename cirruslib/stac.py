@@ -9,7 +9,6 @@ from typing import Dict, Optional, List
 from pystac import STAC_IO, Catalog, CatalogType, Collection, Link
 
 logger = logging.getLogger(__name__)
-logger.setLevel(os.getenv('CIRRUS_LOG_LEVEL', 'INFO'))
 
 # envvars
 DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)

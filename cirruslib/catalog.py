@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import boto3
 import json
-import logging
 import os
 import re
 import uuid
@@ -11,13 +10,10 @@ from typing import Dict, Optional, List
 
 from boto3utils import s3
 from cirruslib.statedb import StateDB
-from cirruslib.logging import DynamicLoggerAdapter
+from cirruslib.logging import DynamicLoggerAdapter, get_task_logger
 from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
 from pythonjsonlogger import jsonlogger
-
-logger = logging.getLogger(__name__)
-
 
 # envvars
 DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
@@ -47,7 +43,7 @@ class Catalog(dict):
         if update:
             self.update()
 
-        self.logger = DynamicLoggerAdapter(logger, self, keys=['id', 'stac_version'])
+        self.logger = get_task_logger(__name__, catalog=self)
 
         # validate process block
         assert(self['type'] == 'FeatureCollection')

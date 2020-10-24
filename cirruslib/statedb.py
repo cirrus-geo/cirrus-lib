@@ -10,7 +10,6 @@ from traceback import format_exc
 from typing import Dict, Optional, List
 
 logger = getLogger(__name__)
-logger.setLevel(os.getenv('CIRRUS_LOG_LEVEL', 'INFO'))
 
 # envvars
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET')

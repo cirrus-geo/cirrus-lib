@@ -11,9 +11,7 @@ from string import Formatter, Template
 from typing import Dict, Optional, List
 from collections.abc import Mapping
 
-# configure logger - CRITICAL, ERROR, WARNING, INFO, DEBUG
 logger = logging.getLogger(__name__)
-logger.setLevel(getenv('CIRRUS_LOG_LEVEL', 'INFO'))
 
 batch_client = boto3.client('batch')
 

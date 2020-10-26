@@ -18,7 +18,7 @@ INDEX_KEYS = {
 }
 
 # logging
-logger = logging.getLogger(f"{__name__}.aws-landsat")
+logger = logging.getLogger(__name__)
 
 
 class StateDB:

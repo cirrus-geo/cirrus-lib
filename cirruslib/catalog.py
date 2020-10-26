@@ -2,18 +2,17 @@ from __future__ import annotations
 
 import boto3
 import json
+import logging
 import os
 import re
 import uuid
-from traceback import format_exc
 from typing import Dict, Optional, List
 
 from boto3utils import s3
 from cirruslib.statedb import StateDB
-from cirruslib.logging import DynamicLoggerAdapter, get_task_logger
+from cirruslib.logging import get_task_logger
 from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
-from pythonjsonlogger import jsonlogger
 
 # envvars
 DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
@@ -24,6 +23,9 @@ PUBLISH_TOPIC_ARN = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
 statedb = StateDB()
 snsclient = boto3.client('sns')
 stepfunctions = boto3.client('stepfunctions')
+
+# logging
+logger = logging.getLogger(__name__)
 
 
 class Catalog(dict):
@@ -109,7 +111,7 @@ class Catalog(dict):
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
 
-        logger.debug(f"Catalog after validate_and_update: {json.dumps(self)}")
+        self.logger.debug(f"Catalog after validate_and_update: {json.dumps(self)}")
 
 
     # assign collections to Items given a mapping of Col ID: ID regex
@@ -124,7 +126,7 @@ class Catalog(dict):
             for col in collections:
                 regex = re.compile(collections[col])
                 if regex.match(item['id']):
-                    logger.debug(f"Setting {item['id']} collection to {col}")
+                    self.logger.debug(f"Setting {item['id']} collection to {col}")
                     item['collection'] = col
 
     def get_payload(self) -> Dict:
@@ -186,7 +188,7 @@ class Catalog(dict):
             extra.update(headers)
             s3session.upload_json(item, url, public=public, extra=extra)
             s3urls.append(url)
-            logger.info(f"Uploaded STAC Item {item['id']} as {url}")
+            self.logger.info(f"Uploaded STAC Item {item['id']} as {url}")
 
         return s3urls
 
@@ -240,7 +242,7 @@ class Catalog(dict):
             topic_arn (str, optional): ARN of SNS Topic. Defaults to PUBLISH_TOPIC_ARN.
         """
         for item in self['features']:
-            logger.debug(f"Publishing item {item['id']} to {topic_arn}")
+            self.logger.debug(f"Publishing item to {topic_arn}")
             response = snsclient.publish(TopicArn=topic_arn, Message=json.dumps(item),
                                         MessageAttributes=self.sns_attributes(item))         
 
@@ -257,11 +259,11 @@ class Catalog(dict):
             # add input catalog to s3
             url = f"s3://{CATALOG_BUCKET}/{self['id']}/input.json"
             s3().upload_json(self, url)
-            logger.debug(f"Uploaded {url}")
+            self.logger.debug(f"Uploaded {url}")
 
             # invoke step function
             arn = os.getenv('BASE_WORKFLOW_ARN') + self['process']['workflow']
-            logger.debug(f"Running {arn} on {self['id']}")
+            self.logger.debug(f"Running {arn} on {self['id']}")
             exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
 
             # create DynamoDB record - this will always overwrite any existing process
@@ -270,8 +272,7 @@ class Catalog(dict):
             return self['id']
         except Exception as err:
             msg = f"process: failed starting {self['id']} ({err})"
-            logger.error(msg)
-            logger.error(format_exc())
+            self.logger.error(msg, exc_info=True)
             statedb.add_failed_item(self, msg)
             raise err
 
@@ -323,7 +324,7 @@ class Catalogs(object):
         for it in resp['items']:
             cat = Catalog(s3().read_json(it['input_catalog']))
             catalogs.append(cat)
-        logger.debug(f"Retrieved {len(catalogs)} from state db")
+        self.logger.debug(f"Retrieved {len(catalogs)} from state db")
         yield cls(catalogs, state_items=resp['items'])
         catalogs = []
         while 'nextkey' in resp:
@@ -331,7 +332,7 @@ class Catalogs(object):
             for it in resp['items']:
                 cat = Catalog(s3().read_json(it['input_catalog']))
                 catalogs.append(cat)
-            logger.debug(f"Retrieved {len(catalogs)} from state db")
+            self.logger.debug(f"Retrieved {len(catalogs)} from state db")
             yield cls(catalogs, state_items=resp['items'])
     """
 

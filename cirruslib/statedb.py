@@ -1,15 +1,12 @@
 import boto3
 import json
+import logging
 import os
 
 from boto3utils import s3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime, timedelta, timezone
-from logging import getLogger
-from traceback import format_exc
 from typing import Dict, Optional, List
-
-logger = getLogger(__name__)
 
 # envvars
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET')
@@ -19,6 +16,9 @@ INDEX_KEYS = {
     'input_state': 'input_collections',
     'output_state': 'output_collections'
 }
+
+# logging
+logger = logging.getLogger(f"{__name__}.aws-landsat")
 
 
 class StateDB:
@@ -148,8 +148,7 @@ class StateDB:
             return items
         except Exception as err:
             msg = f"Error fetching items {catids} ({err})"
-            logger.error(msg)
-            logger.error(format_exc())
+            logger.error(msg, exc_info=True)
             raise Exception(msg) from err
 
     def get_counts(self, collection: str, state: str=None, since: str=None,

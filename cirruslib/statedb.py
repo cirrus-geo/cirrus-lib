@@ -1,25 +1,24 @@
 import boto3
 import json
+import logging
 import os
 
 from boto3utils import s3
 from boto3.dynamodb.conditions import Key
-from datetime import datetime, timedelta
-from logging import getLogger
-from traceback import format_exc
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, List
-
-logger = getLogger(__name__)
-logger.setLevel(os.getenv('CIRRUS_LOG_LEVEL', 'INFO'))
 
 # envvars
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET')
 
-STATES = ['QUEUED', 'PROCESSING', 'COMPLETED', 'FAILED', 'INVALID']
+STATES = ['PROCESSING', 'COMPLETED', 'FAILED', 'INVALID']
 INDEX_KEYS = {
     'input_state': 'input_collections',
     'output_state': 'output_collections'
 }
+
+# logging
+logger = logging.getLogger(__name__)
 
 
 class StateDB:
@@ -35,14 +34,14 @@ class StateDB:
         self.table_name = table_name
         self.table = self.db.Table(table_name)
 
-    def create_item(self, catalog: Dict, state: str='QUEUED'):
+    def create_item(self, catalog: Dict, state: str='PROCESSING'):
         """Create an item in DynamoDB
 
         Args:
             catalog (Dict): A Cirrus Input Catalog
-            state (str, optional): Set items to this state. Defaults to 'QUEUED'.
+            state (str, optional): Set items to this state. Defaults to 'PROCESSING'.
         """
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
         output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
@@ -60,7 +59,7 @@ class StateDB:
 
     def add_item(self, catalog, execution):
         """ Adds new item with state function execution """
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
         output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
@@ -74,13 +73,13 @@ class StateDB:
                 'execution': execution
             }
         )
-        logger.debug(f"Created DynamoDB Item {catalog['id']}")
+        logger.debug("Created DynamoDB Item", extra={'id':catalog['id']})
         return response
 
     def add_failed_item(self, catalog, error_message):
         """ Adds new item as failed """
         """ Adds new item with state function execution """
-        now = datetime.now().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
         output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
@@ -94,13 +93,13 @@ class StateDB:
                 'error_message': error_message
             }
         )
-        logger.debug(f"Created DynamoDB Item {catalog['id']}")
+        logger.debug("Created DynamoDB Item", extra={'id':catalog['id']})
         return response        
 
     def delete_item(self, catid: str):
         key = self.catid_to_key(catid)
         response = self.table.delete_item(Key=key)
-        logger.debug(f"Removed DynamoDB Item {catid}")
+        logger.debug("Removed DynamoDB Item", extra={'id': catid})
         return response
 
     def get_dbitem(self, catid: str) -> Dict:
@@ -117,7 +116,6 @@ class StateDB:
         """
         try:
             response = self.table.get_item(Key=self.catid_to_key(catid))
-            logger.debug(f"Fetched {response['Item']}")
             return response['Item']
         except Exception as err:
             logger.info(f"Error fetching item {catid}: {err}")
@@ -149,8 +147,7 @@ class StateDB:
             return items
         except Exception as err:
             msg = f"Error fetching items {catids} ({err})"
-            logger.error(msg)
-            logger.error(format_exc())
+            logger.error(msg, exc_info=True)
             raise Exception(msg) from err
 
     def get_counts(self, collection: str, state: str=None, since: str=None,
@@ -199,7 +196,7 @@ class StateDB:
 
         Args:
             collection (str): /-separated list of collections (input or output depending on index)
-            state (str): State of Items to get (QUEUED, PROCESSING, COMPLETED, FAILED, INVALID)
+            state (str): State of Items to get (PROCESSING, COMPLETED, FAILED, INVALID)
             since (Optional[str], optional): Get Items since this amount of time in the past. Defaults to None.
             index (str, optional): Query this index (input_state or output_state). Defaults to 'input_state'.
 
@@ -238,10 +235,8 @@ class StateDB:
         """
         resp = self.get_items_page(*args, **kwargs)
         items = resp['items']
-        logger.debug(f"Fetched page of {len(items)} items from statedb")
         while 'nextkey' in resp and (limit is None or len(items) < limit):
             resp = self.get_items_page(*args, nextkey=resp['nextkey'], **kwargs)
-            logger.debug(f"Fetched page of {len(resp['items'])} items from statedb")
             items += resp['items']
         if limit is None or len(items) < limit:
             return items
@@ -254,7 +249,7 @@ class StateDB:
             catid (str): The catalog ID
 
         Returns:
-            str: Current state: QUEUED, PROCESSING, COMPLETED, FAILED, INVALID
+            str: Current state: PROCESSING, COMPLETED, FAILED, INVALID
         """
         response = self.table.get_item(Key=self.catid_to_key(catid))
         if 'Item' in response:
@@ -292,7 +287,7 @@ class StateDB:
             Key=self.catid_to_key(catid),
             UpdateExpression='SET current_state=:p, execution=:exe',
             ExpressionAttributeValues={
-                ':p': f"PROCESSING_{datetime.now().isoformat()}",
+                ':p': f"PROCESSING_{datetime.now(timezone.utc).isoformat()}",
                 ':exe': execution
             }
         )
@@ -312,7 +307,7 @@ class StateDB:
             Key=self.catid_to_key(catid),
             UpdateExpression='SET current_state=:p, output_urls=:urls',
             ExpressionAttributeValues={
-                ':p': f"COMPLETED_{datetime.now().isoformat()}",
+                ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}",
                 ':urls': urls
             }
         )
@@ -332,7 +327,7 @@ class StateDB:
             Key=self.catid_to_key(catid),
             UpdateExpression='SET current_state=:p, error_message=:err',
             ExpressionAttributeValues={
-                ':p': f"FAILED_{datetime.now().isoformat()}",
+                ':p': f"FAILED_{datetime.now(timezone.utc).isoformat()}",
                 ':err': msg
             }
         )
@@ -352,7 +347,7 @@ class StateDB:
             Key=self.catid_to_key(catid),
             UpdateExpression='SET current_state=:p, error_message=:err',
             ExpressionAttributeValues={
-                ':p': f"INVALID_{datetime.now().isoformat()}",
+                ':p': f"INVALID_{datetime.now(timezone.utc).isoformat()}",
                 ':err': msg
             }
         )
@@ -374,9 +369,9 @@ class StateDB:
         """
         expr = Key(INDEX_KEYS[index]).eq(collection)
         if state and since:
-            start = datetime.now() - self.since_to_timedelta(since)
+            start = datetime.now(timezone.utc) - self.since_to_timedelta(since)
             begin = f"{state}_{start.isoformat()}"
-            end = f"{state}_{datetime.now().isoformat()}"
+            end = f"{state}_{datetime.now(timezone.utc).isoformat()}"
             expr = expr & Key('current_state').between(begin, end)
         elif state:
             expr = expr & Key('current_state').begins_with(state)

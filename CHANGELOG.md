@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.3.2] - 2020-10-25
+
+### Added
+- `cirruslib.logging` module configuring structured (JSON) logging and get_task_logger for logging from tasks
+- `cirruslib.stac` module for working with the Cirrus static STAC catalog on s3, uses PySTAC
+- `utils.dict_merged` function for doing recursive merges
+
+### Changed
+- Parsing payload for a task should now use `Catalog.from_payload` instead of `Catalogs.from_payload`, which returns a `Catalog` instead of an array of `Catalog` objects that always had a length of one
+- Claned up logging across all modules
+
+### Removed
+- `Catalogs.from_payload`, replaced by `Catalog.from_payload`
+- `QUEUED` as potential processing state
+
 ## [v0.3.1] - 2020-09-27
 
 ### Changed

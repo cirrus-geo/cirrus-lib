@@ -6,27 +6,26 @@ import logging
 import os
 import re
 import uuid
+from typing import Dict, Optional, List
 
 from boto3utils import s3
 from cirruslib.statedb import StateDB
+from cirruslib.logging import get_task_logger
 from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
-from traceback import format_exc
-from typing import Dict, Optional, List
 
 # envvars
-LOG_LEVEL = os.getenv('CIRRUS_LOG_LEVEL', 'INFO')
 DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET', None)
 PUBLISH_TOPIC_ARN = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
-
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
 
 # clients
 statedb = StateDB()
 snsclient = boto3.client('sns')
 stepfunctions = boto3.client('stepfunctions')
+
+# logging
+logger = logging.getLogger(__name__)
 
 
 class Catalog(dict):
@@ -39,8 +38,14 @@ class Catalog(dict):
         """
         super(Catalog, self).__init__(*args, **kwargs)
 
+        # convert old functions field to tasks
+        if 'functions' in self['process']:
+            self['process']['tasks'] = self['process'].pop('functions')
+
         if update:
             self.update()
+
+        self.logger = get_task_logger(__name__, catalog=self)
 
         # validate process block
         assert(self['type'] == 'FeatureCollection')
@@ -64,12 +69,37 @@ class Catalog(dict):
 
         self.state_item = state_item
 
+    @classmethod
+    def from_payload(cls, payload: Dict, **kwargs) -> Catalog:
+        """Parse a Cirrus payload and return a Catalog instance
+
+        Args:
+            payload (Dict): A payload from SNS, SQS, or containing an s3 URL to payload
+
+        Returns:
+            Catalog: A Catalog instance
+        """
+        if 'Records' in payload:
+            records = [json.loads(r['body']) for r in payload['Records']]
+            # there should be only one
+            assert(len(records) == 1)
+            if 'Message' in records[0]:
+                # SNS
+                cat = json.loads(records[0]['Message'])
+            else:
+                # SQS
+                cat = records[0]
+        elif 'url' in payload:
+            cat = s3().read_json(payload['url'])
+        elif 'Parameters' in payload and 'url' in payload['Parameters']:
+            # this is Batch, get the output payload
+            url = payload['Parameters']['url'].replace('.json', '_out.json')
+            cat = s3().read_json(url)
+        else:
+            cat = payload
+        return cls(cat)
+
     def update(self):
-
-        # convert old functions field to tasks
-        if 'functions' in self['process']:
-            self['process']['tasks'] = self['process'].pop('functions')
-
         # Input collections
         if 'input_collections' not in self['process']:
             cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
@@ -81,7 +111,7 @@ class Catalog(dict):
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
 
-        logger.debug(f"Catalog after validate_and_update: {json.dumps(self)}")
+        self.logger.debug(f"Catalog after validate_and_update: {json.dumps(self)}")
 
 
     # assign collections to Items given a mapping of Col ID: ID regex
@@ -96,7 +126,7 @@ class Catalog(dict):
             for col in collections:
                 regex = re.compile(collections[col])
                 if regex.match(item['id']):
-                    logger.debug(f"Setting {item['id']} collection to {col}")
+                    self.logger.debug(f"Setting collection to {col}")
                     item['collection'] = col
 
     def get_payload(self) -> Dict:
@@ -158,7 +188,7 @@ class Catalog(dict):
             extra.update(headers)
             s3session.upload_json(item, url, public=public, extra=extra)
             s3urls.append(url)
-            logger.info(f"Uploaded STAC Item {item['id']} as {url}")
+            self.logger.info("Published to s3")
 
         return s3urls
 
@@ -212,10 +242,9 @@ class Catalog(dict):
             topic_arn (str, optional): ARN of SNS Topic. Defaults to PUBLISH_TOPIC_ARN.
         """
         for item in self['features']:
-            logger.info(f"Publishing item {item['id']} to {topic_arn}")
             response = snsclient.publish(TopicArn=topic_arn, Message=json.dumps(item),
-                                        MessageAttributes=self.sns_attributes(item))
-            logger.debug(f"Response: {json.dumps(response)}")           
+                                        MessageAttributes=self.sns_attributes(item))         
+            self.logger.debug(f"Published item to {topic_arn}")
 
     def process(self) -> str:
         """Add this Catalog to Cirrus and start workflow
@@ -230,23 +259,19 @@ class Catalog(dict):
             # add input catalog to s3
             url = f"s3://{CATALOG_BUCKET}/{self['id']}/input.json"
             s3().upload_json(self, url)
-            logger.debug(f"Uploaded {url}")
 
             # invoke step function
             arn = os.getenv('BASE_WORKFLOW_ARN') + self['process']['workflow']
-            logger.info(f"Running {arn} on {self['id']}")
+            self.logger.debug(f"Running Step Function {arn}")
             exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
-            logger.debug(f"Start execution response: {exe_response}")
 
             # create DynamoDB record - this will always overwrite any existing process
             resp = statedb.add_item(self, exe_response['executionArn'])
-            logger.debug(f"Add state item response: {resp}")
             
             return self['id']
         except Exception as err:
-            msg = f"process: failed starting {self['id']} ({err})"
-            logger.error(msg)
-            logger.error(format_exc())
+            msg = f"failed starting workflow ({err})"
+            self.logger.error(msg, exc_info=True)
             statedb.add_failed_item(self, msg)
             raise err
 
@@ -270,36 +295,6 @@ class Catalogs(object):
             List[str]: List of Catalog IDs
         """
         return [c['id'] for c in self.catalogs]
-
-    @classmethod
-    def from_payload(cls, payload: Dict, **kwargs) -> Catalogs:
-        """Parse a Cirrus payload and return a Catalogs instance
-
-        Args:
-            payload (Dict): A payload from SNS, SQS, or containing an s3 URL to payload
-
-        Returns:
-            Catalogs: A Catalogs instance
-        """
-        catalogs = []
-        if 'Records' in payload:
-            for record in [json.loads(r['body']) for r in payload['Records']]:
-                if 'Message' in record:
-                    # SNS
-                    cat = Catalog(json.loads(record['Message']))
-                    catalogs.append(cat)
-                else:
-                    # SQS
-                    catalogs.append(Catalog(record))
-        elif 'url' in payload:
-            catalogs = [Catalog(s3().read_json(payload['url']))]
-        elif 'Parameters' in payload and 'url' in payload['Parameters']:
-            # this is Batch, get the output payload
-            url = payload['Parameters']['url'].replace('.json', '_out.json')
-            catalogs = [Catalog(s3().read_json(url))]
-        else:
-            catalogs = [Catalog(payload)]
-        return cls(catalogs)
 
     @classmethod
     def from_catids(cls, catids: List[str], **kwargs) -> Catalogs:
@@ -328,7 +323,7 @@ class Catalogs(object):
         for it in resp['items']:
             cat = Catalog(s3().read_json(it['input_catalog']))
             catalogs.append(cat)
-        logger.debug(f"Retrieved {len(catalogs)} from state db")
+        self.logger.debug(f"Retrieved {len(catalogs)} from state db")
         yield cls(catalogs, state_items=resp['items'])
         catalogs = []
         while 'nextkey' in resp:
@@ -336,7 +331,7 @@ class Catalogs(object):
             for it in resp['items']:
                 cat = Catalog(s3().read_json(it['input_catalog']))
                 catalogs.append(cat)
-            logger.debug(f"Retrieved {len(catalogs)} from state db")
+            self.logger.debug(f"Retrieved {len(catalogs)} from state db")
             yield cls(catalogs, state_items=resp['items'])
     """
 
@@ -390,7 +385,7 @@ class Catalogs(object):
             if state in ['FAILED', ''] or _replace:
                 catids.append(cat.process())
             else:
-                logger.info(f"Skipping {cat['id']}, in {state} state")
+                logger.info(f"Skipping, input already in {state} state")
                 continue
 
         return catids

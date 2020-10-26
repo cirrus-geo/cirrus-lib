@@ -126,7 +126,7 @@ class Catalog(dict):
             for col in collections:
                 regex = re.compile(collections[col])
                 if regex.match(item['id']):
-                    self.logger.debug(f"Setting {item['id']} collection to {col}")
+                    self.logger.debug(f"Setting collection to {col}")
                     item['collection'] = col
 
     def get_payload(self) -> Dict:
@@ -188,7 +188,7 @@ class Catalog(dict):
             extra.update(headers)
             s3session.upload_json(item, url, public=public, extra=extra)
             s3urls.append(url)
-            self.logger.info(f"Uploaded STAC Item {item['id']} as {url}")
+            self.logger.info("Published to s3")
 
         return s3urls
 
@@ -242,9 +242,9 @@ class Catalog(dict):
             topic_arn (str, optional): ARN of SNS Topic. Defaults to PUBLISH_TOPIC_ARN.
         """
         for item in self['features']:
-            self.logger.debug(f"Publishing item to {topic_arn}")
             response = snsclient.publish(TopicArn=topic_arn, Message=json.dumps(item),
                                         MessageAttributes=self.sns_attributes(item))         
+            self.logger.debug(f"Published item to {topic_arn}")
 
     def process(self) -> str:
         """Add this Catalog to Cirrus and start workflow
@@ -259,11 +259,10 @@ class Catalog(dict):
             # add input catalog to s3
             url = f"s3://{CATALOG_BUCKET}/{self['id']}/input.json"
             s3().upload_json(self, url)
-            self.logger.debug(f"Uploaded {url}")
 
             # invoke step function
             arn = os.getenv('BASE_WORKFLOW_ARN') + self['process']['workflow']
-            self.logger.debug(f"Running {arn} on {self['id']}")
+            self.logger.debug(f"Running Step Function {arn}")
             exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
 
             # create DynamoDB record - this will always overwrite any existing process
@@ -271,7 +270,7 @@ class Catalog(dict):
             
             return self['id']
         except Exception as err:
-            msg = f"process: failed starting {self['id']} ({err})"
+            msg = f"failed starting workflow ({err})"
             self.logger.error(msg, exc_info=True)
             statedb.add_failed_item(self, msg)
             raise err
@@ -386,7 +385,7 @@ class Catalogs(object):
             if state in ['FAILED', ''] or _replace:
                 catids.append(cat.process())
             else:
-                logger.info(f"Skipping {cat['id']}, in {state} state")
+                logger.info(f"Skipping, input already in {state} state")
                 continue
 
         return catids

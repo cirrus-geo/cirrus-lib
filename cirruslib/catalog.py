@@ -42,10 +42,10 @@ class Catalog(dict):
         if 'functions' in self['process']:
             self['process']['tasks'] = self['process'].pop('functions')
 
+        self.logger = get_task_logger(__name__, catalog=self)
+
         if update:
             self.update()
-
-        self.logger = get_task_logger(__name__, catalog=self)
 
         # validate process block
         assert(self['type'] == 'FeatureCollection')

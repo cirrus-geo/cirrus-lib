@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.3.3] - 2020-10-27
+
+### Fixed
+- Catalog logging when updating
+
 ## [v0.3.2] - 2020-10-25
 
 ### Added
@@ -72,6 +77,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 Initial Release
 
 [Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/master...develop
+[v0.3.3]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.2.1...v0.3.0

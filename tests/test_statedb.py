@@ -30,7 +30,6 @@ test_item = {
 
 test_dbitem = {
     'input_collections': 'input-collection',
-    'output_collections': 'output-collection',
     'id': 'test/item',
     'current_state': f"QUEUED_{datetime.now()}",
     'created_at': datetime.now()
@@ -164,11 +163,10 @@ class TestStates(unittest.TestCase):
         assert(dbitem['execution'] == 'testarn')
 
     def test_set_complete(self):
-        resp = self.statedb.set_completed(test_item['id'], urls=['output-url'])
+        resp = self.statedb.set_completed(test_item['id'])
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
         assert(dbitem['current_state'].startswith('COMPLETED'))
-        assert(dbitem['output_urls'][0] == 'output-url')
 
     def test_set_failed(self):
         resp = self.statedb.set_failed(test_item['id'], msg='test failure')

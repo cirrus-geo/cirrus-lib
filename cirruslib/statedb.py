@@ -13,8 +13,7 @@ CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET')
 
 STATES = ['PROCESSING', 'COMPLETED', 'FAILED', 'INVALID']
 INDEX_KEYS = {
-    'input_state': 'input_collections',
-    'output_state': 'output_collections'
+    'input_state': 'input_collections'
 }
 
 # logging
@@ -43,13 +42,11 @@ class StateDB:
         """
         now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
-        output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
         response = self.table.put_item(
             Item={
                 'input_collections': key['input_collections'],
                 'id': key['id'],
-                'output_collections': output_collections,
                 'current_state': f"{state}_{now}",
                 'created_at': now,
             }
@@ -61,13 +58,11 @@ class StateDB:
         """ Adds new item with state function execution """
         now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
-        output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
         response = self.table.put_item(
             Item={
                 'input_collections': key['input_collections'],
                 'id': key['id'],
-                'output_collections': output_collections,
                 'current_state': f"PROCESSING_{now}",
                 'created_at': now,
                 'execution': execution
@@ -81,13 +76,11 @@ class StateDB:
         """ Adds new item with state function execution """
         now = datetime.now(timezone.utc).isoformat()
         opts = catalog['process']['output_options']
-        output_collections = '/'.join(sorted(opts['collections'].keys()))
         key = self.catid_to_key(catalog['id'])
         response = self.table.put_item(
             Item={
                 'input_collections': key['input_collections'],
                 'id': key['id'],
-                'output_collections': output_collections,
                 'current_state': f"FAILED_{now}",
                 'created_at': now,
                 'error_message': error_message
@@ -213,8 +206,6 @@ class StateDB:
         if nextkey:
             dbitem = self.get_dbitem(nextkey)
             startkey = { key: dbitem[key] for key in ['input_collections', 'id', 'current_state']}
-            if index == 'output_state':
-                startkey['output_collections'] = dbitem['output_collections']
             resp = self.query(collection, state, since=since, index=index, Limit=limit, ExclusiveStartKey=startkey)
         else:
             resp = self.query(collection, state, since=since, index=index, Limit=limit)
@@ -293,22 +284,20 @@ class StateDB:
         )
         return response
 
-    def set_completed(self, catid: str, urls: List[str]) -> str:
+    def set_completed(self, catid: str) -> str:
         """Set this catalog as COMPLETED
 
         Args:
             catid (str): The Cirrus Catalog
-            urls (List[str]): A list of output URLs to STAC Items
 
         Returns:
             str: DynamoDB response
         """
         response = self.table.update_item(
             Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, output_urls=:urls',
+            UpdateExpression='SET current_state=:p',
             ExpressionAttributeValues={
-                ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}",
-                ':urls': urls
+                ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}"
             }
         )
         return response
@@ -420,7 +409,6 @@ class StateDB:
             "catid": cls.key_to_catid(dbitem),
             "workflow": workflow,
             "input_collections": dbitem['input_collections'],
-            "output_collections": dbitem['output_collections'],
             "state": state,
             "created_at": dbitem['created_at'],
             "updated_at": updated_at,
@@ -431,8 +419,6 @@ class StateDB:
             item['execution'] = exe_url
         if 'error_message' in dbitem:
             item['error'] = dbitem['error_message']
-        if 'output_urls' in dbitem:
-            item['items'] = dbitem['output_urls']
         return item
 
     @classmethod

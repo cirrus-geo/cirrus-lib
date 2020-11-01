@@ -296,7 +296,7 @@ class StateDB:
         """
         response = self.table.update_item(
             Key=self.catid_to_key(catid),
-            UpdateExpression='SET state_updated=:p, output_items=:items',
+            UpdateExpression='SET state_updated=:p, outputs=:items',
             ExpressionAttributeValues={
                 ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}",
                 ':items': items
@@ -421,8 +421,8 @@ class StateDB:
             item['execution'] = exe_url
         if 'error_message' in dbitem:
             item['error'] = dbitem['error_message']
-        if 'output_items' in dbitem:
-            item['items'] = dbitem['output_items']
+        if 'outputs' in dbitem:
+            item['items'] = dbitem['outputs']
         return item
 
     @classmethod

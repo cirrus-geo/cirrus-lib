@@ -167,7 +167,7 @@ class TestStates(unittest.TestCase):
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
         assert(dbitem['state_updated'].startswith('COMPLETED'))
-        assert(dbitem['output_items'][0] == 'output-item')
+        assert(dbitem['outputs'][0] == 'output-item')
 
     def test_set_failed(self):
         resp = self.statedb.set_failed(test_item['id'], msg='test failure')

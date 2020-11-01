@@ -3,25 +3,21 @@
     "BillingMode": "PAY_PER_REQUEST",
     "KeySchema": [
         {
-            "AttributeName": "input_collections",
+            "AttributeName": "collections_workflow",
             "KeyType": "HASH"
         },
         {
-            "AttributeName": "id",
+            "AttributeName": "items",
             "KeyType": "RANGE"
         }
     ],
     "AttributeDefinitions": [
         {
-            "AttributeName": "input_collections",
+            "AttributeName": "collections_workflow",
             "AttributeType": "S"
         },
         {
-            "AttributeName": "id",
-            "AttributeType": "S"
-        },
-        {
-            "AttributeName": "output_collections",
+            "AttributeName": "items",
             "AttributeType": "S"
         },
         {
@@ -29,12 +25,12 @@
             "AttributeType": "S"
         }
     ],
-    "LocalSecondaryIndexes": [
+    "GlobalSecondaryIndexes": [
         {
-            "IndexName": "input_state",
+            "IndexName": "state_updated",
             "KeySchema": [
                 {
-                    "AttributeName": "input_collections",
+                    "AttributeName": "collections_workflow",
                     "KeyType": "HASH"
                 },
                 {   
@@ -45,18 +41,16 @@
             "Projection": {
                 "ProjectionType": "ALL"
             }
-        }
-    ],
-    "GlobalSecondaryIndexes": [
+        },
         {
-            "IndexName": "output_state",
+            "IndexName": "updated",
             "KeySchema": [
                 {
-                    "AttributeName": "output_collections",
+                    "AttributeName": "collections_workflow",
                     "KeyType": "HASH"
                 },
                 {   
-                    "AttributeName": "state_updated",
+                    "AttributeName": "updated_at",
                     "KeyType": "RANGE"
                 }
             ],

@@ -25,7 +25,7 @@
             "AttributeType": "S"
         },
         {
-            "AttributeName": "current_state",
+            "AttributeName": "state_updated",
             "AttributeType": "S"
         }
     ],
@@ -38,7 +38,7 @@
                     "KeyType": "HASH"
                 },
                 {   
-                    "AttributeName": "current_state",
+                    "AttributeName": "state_updated",
                     "KeyType": "RANGE"
                 }
             ],
@@ -56,7 +56,7 @@
                     "KeyType": "HASH"
                 },
                 {   
-                    "AttributeName": "current_state",
+                    "AttributeName": "state_updated",
                     "KeyType": "RANGE"
                 }
             ],

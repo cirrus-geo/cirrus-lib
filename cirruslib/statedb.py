@@ -47,7 +47,7 @@ class StateDB:
             Item={
                 'input_collections': key['input_collections'],
                 'id': key['id'],
-                'current_state': f"{state}_{now}",
+                'state_updated': f"{state}_{now}",
                 'created_at': now,
             }
         )
@@ -63,7 +63,7 @@ class StateDB:
             Item={
                 'input_collections': key['input_collections'],
                 'id': key['id'],
-                'current_state': f"PROCESSING_{now}",
+                'state_updated': f"PROCESSING_{now}",
                 'created_at': now,
                 'execution': execution
             }
@@ -81,7 +81,7 @@ class StateDB:
             Item={
                 'input_collections': key['input_collections'],
                 'id': key['id'],
-                'current_state': f"FAILED_{now}",
+                'state_updated': f"FAILED_{now}",
                 'created_at': now,
                 'error_message': error_message
             }
@@ -205,7 +205,7 @@ class StateDB:
         }
         if nextkey:
             dbitem = self.get_dbitem(nextkey)
-            startkey = { key: dbitem[key] for key in ['input_collections', 'id', 'current_state']}
+            startkey = { key: dbitem[key] for key in ['input_collections', 'id', 'state_updated']}
             resp = self.query(collection, state, since=since, index=index, Limit=limit, ExclusiveStartKey=startkey)
         else:
             resp = self.query(collection, state, since=since, index=index, Limit=limit)
@@ -244,7 +244,7 @@ class StateDB:
         """
         response = self.table.get_item(Key=self.catid_to_key(catid))
         if 'Item' in response:
-            return response['Item']['current_state'].split('_')[0]
+            return response['Item']['state_updated'].split('_')[0]
         else:
             # assuming no such item in database
             return ""
@@ -276,7 +276,7 @@ class StateDB:
         """
         response = self.table.update_item(
             Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, execution=:exe',
+            UpdateExpression='SET state_updated=:p, execution=:exe',
             ExpressionAttributeValues={
                 ':p': f"PROCESSING_{datetime.now(timezone.utc).isoformat()}",
                 ':exe': execution
@@ -296,7 +296,7 @@ class StateDB:
         """
         response = self.table.update_item(
             Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, output_items=:items',
+            UpdateExpression='SET state_updated=:p, output_items=:items',
             ExpressionAttributeValues={
                 ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}",
                 ':items': items
@@ -316,7 +316,7 @@ class StateDB:
         """
         response = self.table.update_item(
             Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, error_message=:err',
+            UpdateExpression='SET state_updated=:p, error_message=:err',
             ExpressionAttributeValues={
                 ':p': f"FAILED_{datetime.now(timezone.utc).isoformat()}",
                 ':err': msg
@@ -336,7 +336,7 @@ class StateDB:
         """
         response = self.table.update_item(
             Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, error_message=:err',
+            UpdateExpression='SET state_updated=:p, error_message=:err',
             ExpressionAttributeValues={
                 ':p': f"INVALID_{datetime.now(timezone.utc).isoformat()}",
                 ':err': msg
@@ -363,9 +363,9 @@ class StateDB:
             start = datetime.now(timezone.utc) - self.since_to_timedelta(since)
             begin = f"{state}_{start.isoformat()}"
             end = f"{state}_{datetime.now(timezone.utc).isoformat()}"
-            expr = expr & Key('current_state').between(begin, end)
+            expr = expr & Key('state_updated').between(begin, end)
         elif state:
-            expr = expr & Key('current_state').begins_with(state)
+            expr = expr & Key('state_updated').begins_with(state)
         resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, **kwargs)
         return resp
 
@@ -405,7 +405,7 @@ class StateDB:
 
     @classmethod
     def dbitem_to_item(cls, dbitem: Dict, region: str=os.getenv('AWS_REGION', 'us-west-2')) -> Dict:
-        state, updated_at = dbitem['current_state'].split('_')
+        state, updated_at = dbitem['state_updated'].split('_')
         workflow = dbitem['id'].split('/')[0]
         item = {
             "catid": cls.key_to_catid(dbitem),

@@ -31,7 +31,7 @@ test_item = {
 test_dbitem = {
     'input_collections': 'input-collection',
     'id': 'test/item',
-    'current_state': f"QUEUED_{datetime.now()}",
+    'state_updated': f"QUEUED_{datetime.now()}",
     'created_at': datetime.now()
 }
 
@@ -116,7 +116,7 @@ class TestDbItems(unittest.TestCase):
         item = self.statedb.get_dbitem(test_item['id'] + '0')
         assert(item['id'] == test_dbitem['id'] + '0')
         assert(item['input_collections'] == test_dbitem['input_collections'])
-        assert(item['current_state'].startswith('QUEUED'))
+        assert(item['state_updated'].startswith('QUEUED'))
 
     def test_get_dbitems(self):
         ids = [test_item['id'] + str(i) for i in range(10)]
@@ -159,27 +159,27 @@ class TestStates(unittest.TestCase):
         resp = self.statedb.set_processing(test_item['id'], execution='testarn')
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['current_state'].startswith('PROCESSING'))
+        assert(dbitem['state_updated'].startswith('PROCESSING'))
         assert(dbitem['execution'] == 'testarn')
 
     def test_set_complete(self):
         resp = self.statedb.set_completed(test_item['id'], items=['output-item'])
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['current_state'].startswith('COMPLETED'))
+        assert(dbitem['state_updated'].startswith('COMPLETED'))
         assert(dbitem['output_items'][0] == 'output-item')
 
     def test_set_failed(self):
         resp = self.statedb.set_failed(test_item['id'], msg='test failure')
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['current_state'].startswith('FAILED'))
+        assert(dbitem['state_updated'].startswith('FAILED'))
 
     def test_set_invalid(self):
         resp = self.statedb.set_invalid(test_item['id'], msg='test failure')
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['current_state'].startswith('INVALID'))
+        assert(dbitem['state_updated'].startswith('INVALID'))
 
 # TODO - figure out why mocking still sends queries to AWS
 #@mock_dynamodb2

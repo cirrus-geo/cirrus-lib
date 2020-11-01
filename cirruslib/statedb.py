@@ -284,20 +284,22 @@ class StateDB:
         )
         return response
 
-    def set_completed(self, catid: str) -> str:
+    def set_completed(self, catid: str, items: List[str]) -> str:
         """Set this catalog as COMPLETED
 
         Args:
             catid (str): The Cirrus Catalog
+            items ([str]): List of URLs to output items
 
         Returns:
             str: DynamoDB response
         """
         response = self.table.update_item(
             Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p',
+            UpdateExpression='SET current_state=:p, output_items=:items',
             ExpressionAttributeValues={
-                ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}"
+                ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}",
+                ':items': items
             }
         )
         return response
@@ -419,6 +421,8 @@ class StateDB:
             item['execution'] = exe_url
         if 'error_message' in dbitem:
             item['error'] = dbitem['error_message']
+        if 'output_items' in dbitem:
+            item['items'] = dbitem['output_items']
         return item
 
     @classmethod

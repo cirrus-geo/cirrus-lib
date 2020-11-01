@@ -163,10 +163,11 @@ class TestStates(unittest.TestCase):
         assert(dbitem['execution'] == 'testarn')
 
     def test_set_complete(self):
-        resp = self.statedb.set_completed(test_item['id'])
+        resp = self.statedb.set_completed(test_item['id'], items=['output-item'])
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
         assert(dbitem['current_state'].startswith('COMPLETED'))
+        assert(dbitem['output_items'][0] == 'output-item')
 
     def test_set_failed(self):
         resp = self.statedb.set_failed(test_item['id'], msg='test failure')

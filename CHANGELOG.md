@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 
 ### Removed
-- `output_collections` and `output_urls` from state database
+- `output_collections` removed from state database
 
 ## [v0.3.3] - 2020-10-27
 

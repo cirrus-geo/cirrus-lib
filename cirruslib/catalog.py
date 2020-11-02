@@ -15,7 +15,6 @@ from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
 
 # envvars
-DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET', None)
 PUBLISH_TOPIC_ARN = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
 
@@ -110,9 +109,6 @@ class Catalog(dict):
         items_str = '/'.join(sorted(list([i['id'] for i in self['features']])))
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
-
-        self.logger.debug(f"Catalog after validate_and_update: {json.dumps(self)}")
-
 
     # assign collections to Items given a mapping of Col ID: ID regex
     def assign_collections(self):

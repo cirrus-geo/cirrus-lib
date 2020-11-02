@@ -34,26 +34,6 @@ class StateDB:
         self.table_name = table_name
         self.table = self.db.Table(table_name)
 
-    def create_item(self, catalog: Dict, state: str='PROCESSING'):
-        """Create an item in DynamoDB
-
-        Args:
-            catalog (Dict): A Cirrus Input Catalog
-            state (str, optional): Set items to this state. Defaults to 'PROCESSING'.
-        """
-        now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catalog['id'])
-        response = self.table.put_item(
-            Item={
-                'input_collections': key['input_collections'],
-                'id': key['id'],
-                'state_updated': f"{state}_{now}",
-                'created_at': now,
-            }
-        )
-        logger.debug(f"Created DynamoDB Item {catalog['id']}")
-        return response
-
     def add_item(self, catalog, execution):
         """ Adds new item with state function execution """
         now = datetime.now(timezone.utc).isoformat()

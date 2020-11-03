@@ -40,9 +40,10 @@ The `StateDB` class from the `statedb` module is used to interact with the Cirru
 | Field Name    | Type           | Description |
 | ------------- | -------------- | ----------- |
 | catid         | string         | The ID of the Cirrus input catalog |
-| catalog       | string         | The s3 URL of the original input catalog JSON |
-| workflow      | string         | The name of the workflow used to process the input data |
 | collections   | string         | A list of all the collections used by the input items |
+| workflow      | string         | The name of the workflow used to process the input data |
+| items         | string         | A list of all the input Item IDs |
+| catalog       | string         | The s3 URL of the original input catalog JSON |
 | state         | string         | One of: 'PROCESSING', 'COMPLETED', 'FAILED', 'INVALID' |
 | created       | string         | The datetime that this item was created in the database |
 | updated       | string         | The datetime stamp that this item's state was last updated |

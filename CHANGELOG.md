@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Changed
+- DynamoDB State database schema changed to allow for more functionality with API queries
+
 ### Removed
 - `output_collections` removed from state database
 

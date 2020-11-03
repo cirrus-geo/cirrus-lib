@@ -212,12 +212,12 @@ class StateDB:
         logger.debug("Add execution", extra=key.update({'execution': execution}))
         return response   
 
-    def set_completed(self, catid: str, items: List[str]) -> str:
+    def set_completed(self, catid: str, outputs: List[str]) -> str:
         """Set this catalog as COMPLETED
 
         Args:
             catid (str): The Cirrus Catalog
-            items ([str]): List of URLs to output items
+            outputs ([str]): List of URLs to output Items
 
         Returns:
             str: DynamoDB response
@@ -225,11 +225,11 @@ class StateDB:
         now = datetime.now(timezone.utc).isoformat()
         response = self.table.update_item(
             Key=self.catid_to_key(catid),
-            UpdateExpression='SET state_updated=:p, updated=:updated, items=:items',
+            UpdateExpression='SET state_updated=:p, updated=:updated, outputs=:outputs',
             ExpressionAttributeValues={
                 ':p': f"COMPLETED_{now}",
                 ':updated': now,
-                ':items': items
+                ':outputs': outputs
             }
         )
         return response
@@ -366,16 +366,17 @@ class StateDB:
             "catid": cls.key_to_catid(dbitem),
             "collections": collections,
             "workflow": workflow,
+            "items": dbitem['items'],
             "state": state,
             "created": dbitem['created'],
             "updated": dbitem['updated'],
             "catalog": cls.get_input_catalog_url(dbitem)
         }
-        if 'items' in dbitem:
-            item['items'] = dbitem['items']
         if 'executions' in dbitem:
             base_url = f"https://{region}.console.aws.amazon.com/states/home?region={region}#/executions/details/"
             item['executions'] = [base_url + f"{e}" for e in dbitem['executions']]
+        if 'outputs' in dbitem:
+            item['outputs'] = dbitem['outputs']
         if 'error' in dbitem:
             item['error'] = dbitem['error']
         return item

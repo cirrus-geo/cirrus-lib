@@ -7,11 +7,15 @@
             "AttributeType": "S"
         },
         {
-            "AttributeName": "items",
+            "AttributeName": "itemids",
             "AttributeType": "S"
         },
         {
             "AttributeName": "state_updated",
+            "AttributeType": "S"
+        },
+        {
+            "AttributeName": "updated",
             "AttributeType": "S"
         }
     ],
@@ -21,7 +25,7 @@
             "KeyType": "HASH"
         },
         {
-            "AttributeName": "items",
+            "AttributeName": "itemids",
             "KeyType": "RANGE"
         }
     ],

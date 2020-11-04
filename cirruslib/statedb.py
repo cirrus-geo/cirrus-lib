@@ -36,6 +36,11 @@ class StateDB:
         logger.debug("Removed item", extra=key)
         return response
 
+    def delete(self):
+        # delete table (used for testing)
+        self.table.delete()
+        self.table.wait_until_not_exists()        
+
     def get_dbitem(self, catid: str) -> Dict:
         """Get a DynamoDB item
 
@@ -51,11 +56,11 @@ class StateDB:
         key=self.catid_to_key(catid)
         try:
             response = self.table.get_item(Key=key)
-            return response['Item']
+            return response.get('Item', None)
         except Exception as err:
-            logger.info("Error fetching item", extra=key.update({'error': err}))
-            # no such item
-            return None
+            msg = "Error fetching item"
+            logger.error(msg, extra=key.update({'error': err}), exc_info=True)
+            raise Exception(msg)
 
     def get_dbitems(self, catids: List[str]) -> List[Dict]:
         """Get multiple DynamoDB Items
@@ -81,9 +86,9 @@ class StateDB:
             logger.debug(f"Fetched {len(items)} items")
             return items
         except Exception as err:
-            msg = f"Error fetching items""
+            msg = f"Error fetching items"
             logger.error(msg, exc_info=True)
-            raise Exception(msg) from err
+            raise Exception(msg)
 
     def get_counts(self, collections_workflow: str, state: str=None, since: str=None, limit: int=None) -> Dict:
         """Get counts by query
@@ -110,8 +115,9 @@ class StateDB:
 
         return counts
 
-    def get_items_page(self, collections_workflow: str, state: str, since: Optional[str]=None,
-                         limit=100, nextkey: str=None) -> List[Dict]:
+    def get_items_page(self, collections_workflow: str,
+                       state: Optional[str]=None, since: Optional[str]=None,
+                       limit=100, nextkey: str=None) -> List[Dict]:
         """Get Items by query
 
         Args:
@@ -127,7 +133,7 @@ class StateDB:
         }
         if nextkey:
             dbitem = self.get_dbitem(nextkey)
-            startkey = { key: dbitem[key] for key in ['collections_workflow', 'items', 'state_updated', 'updated']}
+            startkey = { key: dbitem[key] for key in ['collections_workflow', 'itemids', 'state_updated', 'updated']}
             resp = self.query(collections_workflow, state=state, since=since, Limit=limit, ExclusiveStartKey=startkey)
         else:
             resp = self.query(collections_workflow, state=state, since=since, Limit=limit)
@@ -186,27 +192,28 @@ class StateDB:
             states[item['catid']] = item['state']
         return states
 
-    def set_processing(self, catalog, execution):
+    def set_processing(self, catid, execution):
         """ Adds execution to existing item or creates new """
         now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catalog['id'])
+        key = self.catid_to_key(catid)
 
         expr = (
-            'SET collections_workflow=:col, items=:items, '
+            'SET collections_workflow=:col, itemids=:itemids, '
             'created = if_not_exists(created, :created), '
-            'state_updated:=state_updated, updated=:updated'
-            'executions = list_append(executions, :exes), '
+            'state_updated=:state_updated, updated=:updated, '
+            'executions = list_append(if_not_exists(executions, :empty_list), :exes)'
         )
         response = self.table.update_item(
             Key=key,
             UpdateExpression=expr,
             ExpressionAttributeValues={
                 ':col': key['collections_workflow'],
-                ':items': key['items'],
+                ':itemids': key['itemids'],
                 ':created': now,
                 ':state_updated': f"PROCESSING_{now}",
                 ':updated': now,
-                ':exes': execution
+                ':empty_list': [],
+                ':exes': [execution]
             }
         )
         logger.debug("Add execution", extra=key.update({'execution': execution}))
@@ -223,42 +230,54 @@ class StateDB:
             str: DynamoDB response
         """
         now = datetime.now(timezone.utc).isoformat()
-        response = self.table.update_item(
-            Key=self.catid_to_key(catid),
-            UpdateExpression='SET state_updated=:p, updated=:updated, outputs=:outputs',
-            ExpressionAttributeValues={
-                ':p': f"COMPLETED_{now}",
-                ':updated': now,
-                ':outputs': outputs
-            }
-        )
-        return response
-
-    def set_failed(self, catalog, error_message):
-        """ Adds new item as failed """
-        """ Adds new item with state function execution """
-        now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catalog['id'])
+        key = self.catid_to_key(catid)
 
         expr = (
-            'SET collections_workflow=:col, items=:items, '
+            'SET collections_workflow=:col, itemids=:itemids, '
             'created = if_not_exists(created, :created), '
-            'state_updated:=state_updated, updated=:updated'
-            'error = list_append(executions, :error), '
+            'state_updated=:state_updated, updated=:updated, '
+            'outputs=:outputs'
         )
         response = self.table.update_item(
             Key=key,
             UpdateExpression=expr,
             ExpressionAttributeValues={
                 ':col': key['collections_workflow'],
-                ':items': key['items'],
+                ':itemids': key['itemids'],
+                ':created': now,
+                ':state_updated': f"COMPLETED_{now}",
+                ':updated': now,
+                ':outputs': outputs
+            }
+        )
+        logger.debug("set completed", extra=key.update({'outputs': outputs}))
+        return response
+
+    def set_failed(self, catid, msg):
+        """ Adds new item as failed """
+        """ Adds new item with state function execution """
+        now = datetime.now(timezone.utc).isoformat()
+        key = self.catid_to_key(catid)
+
+        expr = (
+            'SET collections_workflow=:col, itemids=:itemids, '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated, '
+            'last_error=:last_error'
+        )
+        response = self.table.update_item(
+            Key=key,
+            UpdateExpression=expr,
+            ExpressionAttributeValues={
+                ':col': key['collections_workflow'],
+                ':itemids': key['itemids'],
                 ':created': now,
                 ':state_updated': f"FAILED_{now}",
                 ':updated': now,
-                ':error': error_message
+                ':last_error': msg
             }
         )
-        logger.debug("Add error", extra=key.update({'error': error_message}))
+        logger.debug("set failed", extra=key.update({'last_error': msg}))
         return response
 
     def set_invalid(self, catid: str, msg: str) -> str:
@@ -272,15 +291,27 @@ class StateDB:
             str: DynamoDB response
         """
         now = datetime.now(timezone.utc).isoformat()
+        key = self.catid_to_key(catid)
+
+        expr = (
+            'SET collections_workflow=:col, itemids=:itemids, '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated, '
+            'last_error=:last_error'
+        )
         response = self.table.update_item(
-            Key=self.catid_to_key(catid),
-            UpdateExpression='SET state_updated=:p, updated=:updated, error=:err',
+            Key=key,
+            UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':p': f"INVALID_{now}",
+                ':col': key['collections_workflow'],
+                ':itemids': key['itemids'],
+                ':created': now,
+                ':state_updated': f"INVALID_{now}",
                 ':updated': now,
-                ':err': msg
+                ':last_error': msg
             }
         )
+        logger.debug("set invalid", extra=key.update({'last_error': msg}))
         return response
 
     def query(self, collections_workflow: str, state: str=None, since: str=None,
@@ -336,7 +367,7 @@ class StateDB:
         parts2 = parts1[1].split('/', maxsplit=1)
         key = {
             'collections_workflow': parts1[0] + f"_{parts2[0]}",
-            'items': parts2[1]
+            'itemids': parts2[1]
         }
         return key
 
@@ -351,7 +382,7 @@ class StateDB:
             str: Catalog ID
         """
         parts = key['collections_workflow'].rsplit('_', maxsplit=1)
-        return f"{parts[0]}/workflow-{parts[1]}/{key['items']}"
+        return f"{parts[0]}/workflow-{parts[1]}/{key['itemids']}"
 
     @classmethod
     def get_input_catalog_url(self, dbitem):
@@ -366,7 +397,7 @@ class StateDB:
             "catid": cls.key_to_catid(dbitem),
             "collections": collections,
             "workflow": workflow,
-            "items": dbitem['items'],
+            "items": dbitem['itemids'],
             "state": state,
             "created": dbitem['created'],
             "updated": dbitem['updated'],
@@ -377,8 +408,8 @@ class StateDB:
             item['executions'] = [base_url + f"{e}" for e in dbitem['executions']]
         if 'outputs' in dbitem:
             item['outputs'] = dbitem['outputs']
-        if 'error' in dbitem:
-            item['error'] = dbitem['error']
+        if 'last_error' in dbitem:
+            item['last_error'] = dbitem['last_error']
         return item
 
     @classmethod

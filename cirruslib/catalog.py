@@ -96,16 +96,15 @@ class Catalog(dict):
             cat = s3().read_json(url)
         else:
             cat = payload
-        return cls(cat)
+        return cls(cat, **kwargs)
 
     def update(self):
         # Input collections
-        if 'input_collections' not in self['process']:
-            cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
-            self['process']['input_collections'] = cols if len(cols) != 0 else 'none'
+        cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
+        input_collections = cols if len(cols) != 0 else 'none'
 
         # generate ID
-        collections_str = '/'.join(self['process']['input_collections'])
+        collections_str = '/'.join(input_collections)
         items_str = '/'.join(sorted(list([i['id'] for i in self['features']])))
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"

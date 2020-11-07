@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Dict, Optional, List
 
 from boto3utils import s3
@@ -171,10 +172,21 @@ class Catalog(dict):
                 'rel': 'self',
                 'href': url,
                 'type': 'application/json'
-            })            
+            })
 
             # get s3 session
             s3session = get_s3_session(s3url=url)
+
+            # if existing item use created date
+            now = datetime.now(timezone.utc).isoformat()
+            created = None
+            if s3session.exists(url):
+                old_item = s3session.read_json(url)
+                created = old_item['properties'].get('created', None)
+            if created is None:
+                created = now
+            item['properties']['created'] = created
+            item['properties']['updated'] = now
 
             # publish to bucket
             headers = opts.get('headers', {})

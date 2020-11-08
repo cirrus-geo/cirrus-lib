@@ -198,7 +198,7 @@ class StateDB:
         key = self.catid_to_key(catid)
 
         expr = (
-            'SET collections_workflow=:col, itemids=:itemids, '
+            'SET '
             'created = if_not_exists(created, :created), '
             'state_updated=:state_updated, updated=:updated, '
             'executions = list_append(if_not_exists(executions, :empty_list), :exes)'
@@ -207,8 +207,6 @@ class StateDB:
             Key=key,
             UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':col': key['collections_workflow'],
-                ':itemids': key['itemids'],
                 ':created': now,
                 ':state_updated': f"PROCESSING_{now}",
                 ':updated': now,
@@ -233,7 +231,7 @@ class StateDB:
         key = self.catid_to_key(catid)
 
         expr = (
-            'SET collections_workflow=:col, itemids=:itemids, '
+            'SET '
             'created = if_not_exists(created, :created), '
             'state_updated=:state_updated, updated=:updated, '
             'outputs=:outputs'
@@ -242,8 +240,6 @@ class StateDB:
             Key=key,
             UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':col': key['collections_workflow'],
-                ':itemids': key['itemids'],
                 ':created': now,
                 ':state_updated': f"COMPLETED_{now}",
                 ':updated': now,
@@ -260,7 +256,7 @@ class StateDB:
         key = self.catid_to_key(catid)
 
         expr = (
-            'SET collections_workflow=:col, itemids=:itemids, '
+            'SET '
             'created = if_not_exists(created, :created), '
             'state_updated=:state_updated, updated=:updated, '
             'last_error=:last_error'
@@ -269,8 +265,6 @@ class StateDB:
             Key=key,
             UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':col': key['collections_workflow'],
-                ':itemids': key['itemids'],
                 ':created': now,
                 ':state_updated': f"FAILED_{now}",
                 ':updated': now,
@@ -294,7 +288,7 @@ class StateDB:
         key = self.catid_to_key(catid)
 
         expr = (
-            'SET collections_workflow=:col, itemids=:itemids, '
+            'SET '
             'created = if_not_exists(created, :created), '
             'state_updated=:state_updated, updated=:updated, '
             'last_error=:last_error'
@@ -303,8 +297,6 @@ class StateDB:
             Key=key,
             UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':col': key['collections_workflow'],
-                ':itemids': key['itemids'],
                 ':created': now,
                 ':state_updated': f"INVALID_{now}",
                 ':updated': now,

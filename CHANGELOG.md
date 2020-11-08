@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 - Expanded unit tests
+- `status` attribute to published SNS attributes, either `created` or `updated`
 
 ### Changed
 - DynamoDB state database schema changed:

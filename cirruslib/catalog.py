@@ -241,9 +241,15 @@ class Catalog(dict):
                 'StringValue': str(item['properties']['eo:cloud_cover'])
             }
         if item['properties']['created'] != item['properties']['updated']:
-            attr['status'] = 'updated'
+            attr['status'] = {
+                'DataType': 'String',
+                'StringValue': 'updated'
+            }
         else:
-            attr['status'] = 'created'
+            attr['status'] = {
+                'DataType': 'String',
+                'StringValue': 'created'
+            }
         return attr
 
     def publish_to_sns(self, topic_arn=PUBLISH_TOPIC_ARN):

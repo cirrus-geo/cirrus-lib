@@ -283,13 +283,13 @@ class Catalog(dict):
             exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
 
             # create DynamoDB record - this will always overwrite any existing process
-            resp = statedb.set_processing(self, exe_response['executionArn'])
+            resp = statedb.set_processing(self['id'], exe_response['executionArn'])
             
             return self['id']
         except Exception as err:
             msg = f"failed starting workflow ({err})"
             self.logger.error(msg, exc_info=True)
-            statedb.set_failed(self, msg)
+            statedb.set_failed(self['id'], msg)
             raise err
 
 

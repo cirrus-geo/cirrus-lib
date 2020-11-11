@@ -359,7 +359,7 @@ class StateDB:
         parts2 = parts1[1].split('/', maxsplit=1)
         key = {
             'collections_workflow': parts1[0] + f"_{parts2[0]}",
-            'itemids': parts2[1]
+            'itemids': '' if len(parts2) == 1 else parts2[1]
         }
         return key
 

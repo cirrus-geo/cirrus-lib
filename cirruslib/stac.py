@@ -57,10 +57,7 @@ def get_root_catalog():
     else:
         catid = DATA_BUCKET.split('-data-')[0]
         cat = Catalog(id=catid, description=DESCRIPTION)
-        extra = {
-            'ContentType': 'application/json'
-        }
-        s3().upload_json(json.dumps(cat.to_dict()), caturl, extra=extra, public=PUBLIC_CATALOG)
+        cat.normalize_and_save(ROOT_URL, CatalogType.ABSOLUTE_PUBLISHED)
     logger.debug(f"Fetched {cat.describe()}")
     return cat
 

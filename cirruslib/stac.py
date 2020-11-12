@@ -59,8 +59,10 @@ def get_root_catalog():
         extra = {
             'ContentType': 'application/json'
         }
-        logger.info(f"PUBLIC: {PUBLIC_CATALOG}")
-        s3().upload_json(json.dumps(cat.to_dict()), caturl, extra=extra, public=PUBLIC_CATALOG)
+        if PUBLIC_CATALOG:
+            s3().upload_json(json.dumps(cat.to_dict()), caturl, extra=extra, public=PUBLIC_CATALOG)
+        else:
+            s3().upload_json(json.dumps(cat.to_dict()), caturl, extra=extra)
     logger.debug(f"Fetched {cat.describe()}")
     return cat
 

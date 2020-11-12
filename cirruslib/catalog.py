@@ -100,12 +100,15 @@ class Catalog(dict):
         return cls(cat, **kwargs)
 
     def update(self):
-        # Input collections
-        cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
-        input_collections = cols if len(cols) != 0 else 'none'
-
-        # generate ID
-        collections_str = '/'.join(input_collections)
+        if 'collections' in self['process']:
+            # allow overriding of collections name 
+            collections_str = self['process']['collections']
+        else:
+            # otherwise, get from items
+            cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
+            input_collections = cols if len(cols) != 0 else 'none'
+            collections_str = '/'.join(input_collections)
+        
         items_str = '/'.join(sorted(list([i['id'] for i in self['features']])))
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"

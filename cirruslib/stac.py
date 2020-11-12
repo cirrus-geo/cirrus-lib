@@ -12,12 +12,13 @@ logger = logging.getLogger(__name__)
 
 # envvars
 DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
-PUBLIC_CATALOG = os.getenv('CIRRUS_PUBLIC_CATALOG', False)
-PUBLIC_CATALOG = True if PUBLIC_CATALOG.lower() == 'true' else False
 STAC_VERSION = os.getenv('CIRRUS_STAC_VERSION', '1.0.0-beta.2')
 DESCRIPTION = os.getenv('CIRRUS_STAC_DESCRIPTION', 'Cirrus STAC')
 AWS_REGION = os.getenv('AWS_REGION')
 PUBLISH_TOPIC = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
+PUBLIC_CATALOG = os.getenv('CIRRUS_PUBLIC_CATALOG', False)
+if isinstance(PUBLIC_CATALOG, str):
+    PUBLIC_CATALOG = True if PUBLIC_CATALOG.lower() == 'true' else False
 
 # root catalog
 ROOT_URL = f"s3://{DATA_BUCKET}"

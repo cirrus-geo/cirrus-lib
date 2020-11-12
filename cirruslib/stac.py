@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # envvars
 DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
 PUBLIC_CATALOG = os.getenv('CIRRUS_PUBLIC_CATALOG', False)
+PUBLIC_CATALOG = True if PUBLIC_CATALOG.lower() == 'true' else False
 STAC_VERSION = os.getenv('CIRRUS_STAC_VERSION', '1.0.0-beta.2')
 DESCRIPTION = os.getenv('CIRRUS_STAC_DESCRIPTION', 'Cirrus STAC')
 AWS_REGION = os.getenv('AWS_REGION')
@@ -59,10 +60,7 @@ def get_root_catalog():
         extra = {
             'ContentType': 'application/json'
         }
-        if PUBLIC_CATALOG:
-            s3().upload_json(json.dumps(cat.to_dict()), caturl, extra=extra, public=PUBLIC_CATALOG)
-        else:
-            s3().upload_json(json.dumps(cat.to_dict()), caturl, extra=extra)
+        s3().upload_json(json.dumps(cat.to_dict()), caturl, extra=extra, public=PUBLIC_CATALOG)
     logger.debug(f"Fetched {cat.describe()}")
     return cat
 

@@ -80,7 +80,9 @@
                 "sentinel:product_id": "S2B_MSIL2A_20201103T152219_N0214_R082_T17HQD_20201103T185442",
                 "sentinel:data_coverage": 20.61,
                 "eo:cloud_cover": 51.56,
-                "sentinel:valid_cloud_cover": true
+                "sentinel:valid_cloud_cover": true,
+                "created": "2020-11-11T00:00:00Z",
+                "updated": "2020-11-11T00:00:00Z"
             },
             "collection": "sentinel-s2-l2a",
             "assets": {

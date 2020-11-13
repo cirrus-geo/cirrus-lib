@@ -47,7 +47,7 @@ class Test(unittest.TestCase):
         buckets = session.s3.list_buckets()
         assert(buckets['Buckets'][0]['Name'] == testbucket)
 
-    def test_download_from_http(self):
+    def _test_download_from_http(self):
         url = 'https://raw.githubusercontent.com/cirrus-geo/cirrus/master/README.md'
         fname = transfer.download_from_http(url, path=testpath)
         assert(os.path.exists(fname))

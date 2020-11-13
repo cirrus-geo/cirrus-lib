@@ -12,21 +12,15 @@ testpath = f"{os.path.dirname(__file__)}/test_transfer"
 testbucket = 'testbucket'
 
 @mock_s3
-def setup():
-    client = s3()
-    client.s3.create_bucket(Bucket=testbucket)
-    client.s3.put_object(Body='test', Bucket=testbucket, Key=os.path.basename(__file__))
-    os.makedirs(testpath, exist_ok=True)
-    #client.upload_file(Filename=os.path.join(testpath, 'test.json'), Bucket=testbucket, Key='test.json')
-    #yield client
-
-
-@mock_s3
 class Test(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        setup()
+    def setUp(self):
+        client = s3()
+        client.s3.create_bucket(Bucket=testbucket)
+        client.s3.put_object(Body='test', Bucket=testbucket, Key=os.path.basename(__file__))
+        os.makedirs(testpath, exist_ok=True)
+        #client.upload_file(Filename=os.path.join(testpath, 'test.json'), Bucket=testbucket, Key='test.json')
+        #yield client
 
     @classmethod
     def tearDownClass(cls):

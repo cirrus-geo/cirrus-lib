@@ -15,7 +15,8 @@ testbucket = 'testbucket'
 class Test(unittest.TestCase):
 
     def setUp(self):
-        client = s3()
+        session = boto3.client('s3', region_name='us-east-1')
+        client = s3(session)
         client.s3.create_bucket(Bucket=testbucket)
         client.s3.put_object(Body='test', Bucket=testbucket, Key=os.path.basename(__file__))
         os.makedirs(testpath, exist_ok=True)

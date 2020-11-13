@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Dict, Optional, List
 
 from boto3utils import s3
@@ -15,7 +16,6 @@ from cirruslib.transfer import get_s3_session
 from cirruslib.utils import get_path
 
 # envvars
-DATA_BUCKET = os.getenv('CIRRUS_DATA_BUCKET', None)
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET', None)
 PUBLISH_TOPIC_ARN = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
 
@@ -97,22 +97,21 @@ class Catalog(dict):
             cat = s3().read_json(url)
         else:
             cat = payload
-        return cls(cat)
+        return cls(cat, **kwargs)
 
     def update(self):
-        # Input collections
-        if 'input_collections' not in self['process']:
+        if 'collections' in self['process']:
+            # allow overriding of collections name 
+            collections_str = self['process']['collections']
+        else:
+            # otherwise, get from items
             cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
-            self['process']['input_collections'] = cols if len(cols) != 0 else 'none'
-
-        # generate ID
-        collections_str = '/'.join(self['process']['input_collections'])
+            input_collections = cols if len(cols) != 0 else 'none'
+            collections_str = '/'.join(input_collections)
+        
         items_str = '/'.join(sorted(list([i['id'] for i in self['features']])))
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
-
-        self.logger.debug(f"Catalog after validate_and_update: {json.dumps(self)}")
-
 
     # assign collections to Items given a mapping of Col ID: ID regex
     def assign_collections(self):
@@ -176,10 +175,21 @@ class Catalog(dict):
                 'rel': 'self',
                 'href': url,
                 'type': 'application/json'
-            })            
+            })
 
             # get s3 session
             s3session = get_s3_session(s3url=url)
+
+            # if existing item use created date
+            now = datetime.now(timezone.utc).isoformat()
+            created = None
+            if s3session.exists(url):
+                old_item = s3session.read_json(url)
+                created = old_item['properties'].get('created', None)
+            if created is None:
+                created = now
+            item['properties']['created'] = created
+            item['properties']['updated'] = now
 
             # publish to bucket
             headers = opts.get('headers', {})
@@ -233,6 +243,16 @@ class Catalog(dict):
                 'DataType': 'Number',
                 'StringValue': str(item['properties']['eo:cloud_cover'])
             }
+        if item['properties']['created'] != item['properties']['updated']:
+            attr['status'] = {
+                'DataType': 'String',
+                'StringValue': 'updated'
+            }
+        else:
+            attr['status'] = {
+                'DataType': 'String',
+                'StringValue': 'created'
+            }
         return attr
 
     def publish_to_sns(self, topic_arn=PUBLISH_TOPIC_ARN):
@@ -266,13 +286,13 @@ class Catalog(dict):
             exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
 
             # create DynamoDB record - this will always overwrite any existing process
-            resp = statedb.add_item(self, exe_response['executionArn'])
+            resp = statedb.set_processing(self['id'], exe_response['executionArn'])
             
             return self['id']
         except Exception as err:
             msg = f"failed starting workflow ({err})"
             self.logger.error(msg, exc_info=True)
-            statedb.add_failed_item(self, msg)
+            statedb.set_failed(self['id'], msg)
             raise err
 
 

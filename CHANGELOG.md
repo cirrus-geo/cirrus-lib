@@ -6,6 +6,33 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.4.0] - 2020-11-13
+
+### Added
+- Expanded unit tests
+- `status` attribute to published SNS attributes, either `created` or `updated`
+
+### Changed
+- DynamoDB state database schema changed:
+    - `input_collections` -> `collections_workflow`, combines collections string and workflow name
+    - `id` -> `itemids`, IDs of all input STAC Items, no longer prefaced with workflow (moved to `collections_workflow`)
+    - `output_collections` field removed
+    - `current_state` -> `state_updated`, same contents
+    - `updated` field added containing just the updated datetime
+    - `created_at` -> `created`
+    - `output_urls` -> `outputs`, still a List of canonical STAC Item URLs
+    - `error_message` -> `last_error`, contains the last execution error if input has ever failed
+    - `execution` -> `executions`, now a list of all executions for this input catalog.
+- Cirrus State Item changed:
+    - `input_collections` -> `collections`
+    - `created_at` -> `created`
+    - `input_catalog` -> `catalog`
+    - `output_urls` -> `outputs`
+    - `error_message` -> `last_error`, now stores last execution error
+    - `execution` -> `executions`, now a list of all executions for this input catalog
+    - `output_collections` removed
+    - `updated` added
+
 ## [v0.3.3] - 2020-10-27
 
 ### Fixed
@@ -77,6 +104,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 Initial Release
 
 [Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/master...develop
+[v0.4.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.3...v0.4.0
 [v0.3.3]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.0...v0.3.1

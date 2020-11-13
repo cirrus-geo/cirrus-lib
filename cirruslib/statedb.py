@@ -12,10 +12,6 @@ from typing import Dict, Optional, List
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET')
 
 STATES = ['PROCESSING', 'COMPLETED', 'FAILED', 'INVALID']
-INDEX_KEYS = {
-    'input_state': 'input_collections',
-    'output_state': 'output_collections'
-}
 
 # logging
 logger = logging.getLogger(__name__)
@@ -34,73 +30,16 @@ class StateDB:
         self.table_name = table_name
         self.table = self.db.Table(table_name)
 
-    def create_item(self, catalog: Dict, state: str='PROCESSING'):
-        """Create an item in DynamoDB
-
-        Args:
-            catalog (Dict): A Cirrus Input Catalog
-            state (str, optional): Set items to this state. Defaults to 'PROCESSING'.
-        """
-        now = datetime.now(timezone.utc).isoformat()
-        opts = catalog['process']['output_options']
-        output_collections = '/'.join(sorted(opts['collections'].keys()))
-        key = self.catid_to_key(catalog['id'])
-        response = self.table.put_item(
-            Item={
-                'input_collections': key['input_collections'],
-                'id': key['id'],
-                'output_collections': output_collections,
-                'current_state': f"{state}_{now}",
-                'created_at': now,
-            }
-        )
-        logger.debug(f"Created DynamoDB Item {catalog['id']}")
-        return response
-
-    def add_item(self, catalog, execution):
-        """ Adds new item with state function execution """
-        now = datetime.now(timezone.utc).isoformat()
-        opts = catalog['process']['output_options']
-        output_collections = '/'.join(sorted(opts['collections'].keys()))
-        key = self.catid_to_key(catalog['id'])
-        response = self.table.put_item(
-            Item={
-                'input_collections': key['input_collections'],
-                'id': key['id'],
-                'output_collections': output_collections,
-                'current_state': f"PROCESSING_{now}",
-                'created_at': now,
-                'execution': execution
-            }
-        )
-        logger.debug("Created DynamoDB Item", extra={'id':catalog['id']})
-        return response
-
-    def add_failed_item(self, catalog, error_message):
-        """ Adds new item as failed """
-        """ Adds new item with state function execution """
-        now = datetime.now(timezone.utc).isoformat()
-        opts = catalog['process']['output_options']
-        output_collections = '/'.join(sorted(opts['collections'].keys()))
-        key = self.catid_to_key(catalog['id'])
-        response = self.table.put_item(
-            Item={
-                'input_collections': key['input_collections'],
-                'id': key['id'],
-                'output_collections': output_collections,
-                'current_state': f"FAILED_{now}",
-                'created_at': now,
-                'error_message': error_message
-            }
-        )
-        logger.debug("Created DynamoDB Item", extra={'id':catalog['id']})
-        return response        
-
     def delete_item(self, catid: str):
         key = self.catid_to_key(catid)
         response = self.table.delete_item(Key=key)
-        logger.debug("Removed DynamoDB Item", extra={'id': catid})
+        logger.debug("Removed item", extra=key)
         return response
+
+    def delete(self):
+        # delete table (used for testing)
+        self.table.delete()
+        self.table.wait_until_not_exists()        
 
     def get_dbitem(self, catid: str) -> Dict:
         """Get a DynamoDB item
@@ -114,13 +53,14 @@ class StateDB:
         Returns:
             Dict: DynamoDB Item
         """
+        key=self.catid_to_key(catid)
         try:
-            response = self.table.get_item(Key=self.catid_to_key(catid))
-            return response['Item']
+            response = self.table.get_item(Key=key)
+            return response.get('Item', None)
         except Exception as err:
-            logger.info(f"Error fetching item {catid}: {err}")
-            # no such item
-            return None
+            msg = "Error fetching item"
+            logger.error(msg, extra=key.update({'error': err}), exc_info=True)
+            raise Exception(msg)
 
     def get_dbitems(self, catids: List[str]) -> List[Dict]:
         """Get multiple DynamoDB Items
@@ -146,78 +86,57 @@ class StateDB:
             logger.debug(f"Fetched {len(items)} items")
             return items
         except Exception as err:
-            msg = f"Error fetching items {catids} ({err})"
+            msg = f"Error fetching items"
             logger.error(msg, exc_info=True)
-            raise Exception(msg) from err
+            raise Exception(msg)
 
-    def get_counts(self, collection: str, state: str=None, since: str=None,
-                   index: str='input_state', limit: int=None) -> Dict:
+    def get_counts(self, collections_workflow: str, state: str=None, since: str=None, limit: int=None) -> Dict:
         """Get counts by query
 
         Args:
-            collection (str): /-separated list of collections (input or output depending on index)
+            collections_workflow (str): /-separated list of collections (input or output depending on index)
             state (Optional[str], optional): State of Items to get. Defaults to None.
             since (Optional[str], optional): Get Items since this amount of time in the past. Defaults to None.
-            index (str, optional): Query this index (input_state or output_state). Defaults to 'input_state'.
             limit (int, optional): The max number to return, anything over will be reported as "<limit>+", e.g. "1000+"
 
         Returns:
             Dict: JSON containing counts key with counts for each state requested
         """
-        counts = {}
+        counts = 0
+        resp = self.query(collections_workflow, state=state, since=since, select='COUNT')
+        counts = resp['Count']
+        while 'LastEvaluatedKey' in resp:
+            resp = self.query(collections_workflow, state=state, since=since, select='COUNT',
+                              ExclusiveStartKey=resp['LastEvaluatedKey'])
+            counts += resp['Count']
+            if limit and counts > limit:
+                counts = f"{limit}+"
+                break
 
-        # make sure valid collection
-        assert(index in INDEX_KEYS.keys())
+        return counts
 
-        _states = [state] if state else STATES
-
-        for state in _states:
-            counts[state] = 0
-            resp = self.query(collection, state, since=since, index=index, select='COUNT')
-            counts[state] = resp['Count']
-            while 'LastEvaluatedKey' in resp:
-                resp = self.query(collection, state, since=since, index=index, select='COUNT',
-                                         ExclusiveStartKey=resp['LastEvaluatedKey'])
-                counts[state] += resp['Count']
-                if limit and counts[state] > limit:
-                    break
-            if limit and counts[state] > limit:
-                counts[state] = f"{limit}+"
-                continue
-        return {
-            INDEX_KEYS[index]: collection,
-            'index': index,
-            'counts': counts
-        }
-
-    def get_items_page(self, collection: str, state: str, since: Optional[str]=None,
-                  index: str='input_state', limit=100, nextkey: str=None) -> List[Dict]:
+    def get_items_page(self, collections_workflow: str,
+                       state: Optional[str]=None, since: Optional[str]=None,
+                       limit=100, nextkey: str=None) -> List[Dict]:
         """Get Items by query
 
         Args:
-            collection (str): /-separated list of collections (input or output depending on index)
+            collections_workflow (str): /-separated list of input collections_workflow
             state (str): State of Items to get (PROCESSING, COMPLETED, FAILED, INVALID)
             since (Optional[str], optional): Get Items since this amount of time in the past. Defaults to None.
-            index (str, optional): Query this index (input_state or output_state). Defaults to 'input_state'.
 
         Returns:
             Dict: List of Items
         """
-        if state:
-            _states = [state]
-        _states = [state] if state else STATES
-
         items = {
             'items': []
         }
         if nextkey:
             dbitem = self.get_dbitem(nextkey)
-            startkey = { key: dbitem[key] for key in ['input_collections', 'id', 'current_state']}
-            if index == 'output_state':
-                startkey['output_collections'] = dbitem['output_collections']
-            resp = self.query(collection, state, since=since, index=index, Limit=limit, ExclusiveStartKey=startkey)
+            startkey = { key: dbitem[key] for key in ['collections_workflow', 'itemids', 'state_updated', 'updated']}
+            resp = self.query(collections_workflow, state=state, since=since, Limit=limit, ExclusiveStartKey=startkey)
         else:
-            resp = self.query(collection, state, since=since, index=index, Limit=limit)
+            resp = self.query(collections_workflow, state=state, since=since, Limit=limit)
         for i in resp['Items']:
             items['items'].append(self.dbitem_to_item(i))
         if 'LastEvaluatedKey' in resp:
@@ -253,7 +172,7 @@ class StateDB:
         """
         response = self.table.get_item(Key=self.catid_to_key(catid))
         if 'Item' in response:
-            return response['Item']['current_state'].split('_')[0]
+            return response['Item']['state_updated'].split('_')[0]
         else:
             # assuming no such item in database
             return ""
@@ -273,64 +192,86 @@ class StateDB:
             states[item['catid']] = item['state']
         return states
 
-    def set_processing(self, catid: str, execution: str) -> str:
-        """Set Item to PROCESSING
+    def set_processing(self, catid, execution):
+        """ Adds execution to existing item or creates new """
+        now = datetime.now(timezone.utc).isoformat()
+        key = self.catid_to_key(catid)
 
-        Args:
-            catid (str): A Cirrus catalog
-            execution (str): An ARN to the State Machine execution
-
-        Returns:
-            str: DynamoDB response
-        """
+        expr = (
+            'SET '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated, '
+            'executions = list_append(if_not_exists(executions, :empty_list), :exes)'
+        )
         response = self.table.update_item(
-            Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, execution=:exe',
+            Key=key,
+            UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':p': f"PROCESSING_{datetime.now(timezone.utc).isoformat()}",
-                ':exe': execution
+                ':created': now,
+                ':state_updated': f"PROCESSING_{now}",
+                ':updated': now,
+                ':empty_list': [],
+                ':exes': [execution]
             }
         )
-        return response
+        logger.debug("Add execution", extra=key.update({'execution': execution}))
+        return response   
 
-    def set_completed(self, catid: str, urls: List[str]) -> str:
+    def set_completed(self, catid: str, outputs: List[str]) -> str:
         """Set this catalog as COMPLETED
 
         Args:
             catid (str): The Cirrus Catalog
-            urls (List[str]): A list of output URLs to STAC Items
+            outputs ([str]): List of URLs to output Items
 
         Returns:
             str: DynamoDB response
         """
+        now = datetime.now(timezone.utc).isoformat()
+        key = self.catid_to_key(catid)
+
+        expr = (
+            'SET '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated, '
+            'outputs=:outputs'
+        )
         response = self.table.update_item(
-            Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, output_urls=:urls',
+            Key=key,
+            UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':p': f"COMPLETED_{datetime.now(timezone.utc).isoformat()}",
-                ':urls': urls
+                ':created': now,
+                ':state_updated': f"COMPLETED_{now}",
+                ':updated': now,
+                ':outputs': outputs
             }
         )
+        logger.debug("set completed", extra=key.update({'outputs': outputs}))
         return response
 
-    def set_failed(self, catid: str, msg: str) -> str:
-        """Set this catalog as FAILED
+    def set_failed(self, catid, msg):
+        """ Adds new item as failed """
+        """ Adds new item with state function execution """
+        now = datetime.now(timezone.utc).isoformat()
+        key = self.catid_to_key(catid)
 
-        Args:
-            catid (str): The Cirrus Catalog
-            msg (str): An error message to include in DynamoDB Item
-
-        Returns:
-            str: DynamoDB response
-        """
+        expr = (
+            'SET '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated, '
+            'last_error=:last_error'
+        )
         response = self.table.update_item(
-            Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, error_message=:err',
+            Key=key,
+            UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':p': f"FAILED_{datetime.now(timezone.utc).isoformat()}",
-                ':err': msg
+                ':created': now,
+                ':state_updated': f"FAILED_{now}",
+                ':updated': now,
+                ':last_error': msg
             }
         )
+        logger.debug("set failed", extra=key.update({'last_error': msg}))
         return response
 
     def set_invalid(self, catid: str, msg: str) -> str:
@@ -343,39 +284,65 @@ class StateDB:
         Returns:
             str: DynamoDB response
         """
+        now = datetime.now(timezone.utc).isoformat()
+        key = self.catid_to_key(catid)
+
+        expr = (
+            'SET '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated, '
+            'last_error=:last_error'
+        )
         response = self.table.update_item(
-            Key=self.catid_to_key(catid),
-            UpdateExpression='SET current_state=:p, error_message=:err',
+            Key=key,
+            UpdateExpression=expr,
             ExpressionAttributeValues={
-                ':p': f"INVALID_{datetime.now(timezone.utc).isoformat()}",
-                ':err': msg
+                ':created': now,
+                ':state_updated': f"INVALID_{now}",
+                ':updated': now,
+                ':last_error': msg
             }
         )
+        logger.debug("set invalid", extra=key.update({'last_error': msg}))
         return response
 
-    def query(self, collection: str, state: str=None, since: str=None,
-                     index: str='input_state', select: str='ALL_ATTRIBUTES', **kwargs) -> Dict:
+    def query(self, collections_workflow: str, state: str=None, since: str=None,
+              select: str='ALL_ATTRIBUTES', **kwargs) -> Dict:
         """Perform a single Query on a DynamoDB index
 
         Args:
-            collection (str): /-separated ordered list of collections
-            state (str, optional): The state to query. Defaults to None.
+            collections_workflow (str): The complete has to query
+            state (str, optional): The state of the Item. Defaults to None.
             since (str, optional): Query for items since this time. Defaults to None.
-            index (str, optional): The DynamoDB index to query (input_state, output_state). Defaults to 'input_state'.
             select (str, optional): DynamoDB Select statement (ALL_ATTRIBUTES, COUNT). Defaults to 'ALL_ATTRIBUTES'.
 
         Returns:
             Dict: DynamoDB response
         """
-        expr = Key(INDEX_KEYS[index]).eq(collection)
-        if state and since:
+        # default to using primary index
+        index = None
+
+        # always use the hash of the table which is same in all Global Secondary Indices
+        expr = Key('collections_workflow').eq(collections_workflow)
+        if since:
             start = datetime.now(timezone.utc) - self.since_to_timedelta(since)
-            begin = f"{state}_{start.isoformat()}"
-            end = f"{state}_{datetime.now(timezone.utc).isoformat()}"
-            expr = expr & Key('current_state').between(begin, end)
+            begin = f"{start.isoformat()}"
+            end = f"{datetime.now(timezone.utc).isoformat()}"
+            if state:
+                index = 'state_updated'
+                expr = expr & Key(index).between(f"{state}_{begin}", f"{state}_{end}")
+            else:
+                index = 'updated'
+                expr = expr & Key(index).between(begin, end)
         elif state:
-            expr = expr & Key('current_state').begins_with(state)
-        resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, **kwargs)
+            index = 'state_updated'
+            expr = expr & Key(index).begins_with(state)
+
+        if index:
+            resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, **kwargs)
+        else:
+            resp = self.table.query(KeyConditionExpression=expr, Select=select, **kwargs)
+
         return resp
 
     @classmethod
@@ -388,10 +355,11 @@ class StateDB:
         Returns:
             Dict: Dictionary containing the DynamoDB Key
         """
-        parts = catid.split('/workflow-')
+        parts1 = catid.split('/workflow-')
+        parts2 = parts1[1].split('/', maxsplit=1)
         key = {
-            'input_collections': parts[0],
-            'id': parts[1]
+            'collections_workflow': parts1[0] + f"_{parts2[0]}",
+            'itemids': '' if len(parts2) == 1 else parts2[1]
         }
         return key
 
@@ -405,7 +373,8 @@ class StateDB:
         Returns:
             str: Catalog ID
         """
-        return f"{key['input_collections']}/workflow-{key['id']}"
+        parts = key['collections_workflow'].rsplit('_', maxsplit=1)
+        return f"{parts[0]}/workflow-{parts[1]}/{key['itemids']}"
 
     @classmethod
     def get_input_catalog_url(self, dbitem):
@@ -414,25 +383,25 @@ class StateDB:
 
     @classmethod
     def dbitem_to_item(cls, dbitem: Dict, region: str=os.getenv('AWS_REGION', 'us-west-2')) -> Dict:
-        state, updated_at = dbitem['current_state'].split('_')
-        workflow = dbitem['id'].split('/')[0]
+        state, updated = dbitem['state_updated'].split('_')
+        collections, workflow = dbitem['collections_workflow'].rsplit('_', maxsplit=1)
         item = {
             "catid": cls.key_to_catid(dbitem),
+            "collections": collections,
             "workflow": workflow,
-            "input_collections": dbitem['input_collections'],
-            "output_collections": dbitem['output_collections'],
+            "items": dbitem['itemids'],
             "state": state,
-            "created_at": dbitem['created_at'],
-            "updated_at": updated_at,
-            "input_catalog": cls.get_input_catalog_url(dbitem)
+            "created": dbitem['created'],
+            "updated": dbitem['updated'],
+            "catalog": cls.get_input_catalog_url(dbitem)
         }
-        if 'execution' in dbitem:
-            exe_url = f"https://{region}.console.aws.amazon.com/states/home?region={region}#/executions/details/{dbitem['execution']}"
-            item['execution'] = exe_url
-        if 'error_message' in dbitem:
-            item['error'] = dbitem['error_message']
-        if 'output_urls' in dbitem:
-            item['items'] = dbitem['output_urls']
+        if 'executions' in dbitem:
+            base_url = f"https://{region}.console.aws.amazon.com/states/home?region={region}#/executions/details/"
+            item['executions'] = [base_url + f"{e}" for e in dbitem['executions']]
+        if 'outputs' in dbitem:
+            item['outputs'] = dbitem['outputs']
+        if 'last_error' in dbitem:
+            item['last_error'] = dbitem['last_error']
         return item
 
     @classmethod

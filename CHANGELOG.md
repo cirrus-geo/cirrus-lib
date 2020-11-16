@@ -6,11 +6,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [v0.4.2] - 2020-11-16
-
-### Fixed
-- Bug preventing reruns of catalogs when already COMPLETED
-
 ## [v0.4.1] - 2020-11-16
 
 ### Fixed

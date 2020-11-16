@@ -329,7 +329,7 @@ class Catalogs(object):
         items = [statedb.dbitem_to_item(statedb.get_dbitem(catid)) for catid in catids]
         catalogs = []
         for item in items:
-            cat = Catalog(s3().read_json(item['input_catalog']))
+            cat = Catalog(s3().read_json(item['catalog']))
             catalogs.append(cat)
         logger.debug(f"Retrieved {len(catalogs)} from state db")
         return cls(catalogs, state_items=items)
@@ -373,7 +373,7 @@ class Catalogs(object):
         items = statedb.get_items(collections, state, since, index, limit=limit)
         logger.debug(f"Retrieved {len(items)} total items from statedb")
         for item in items:
-            cat = Catalog(s3().read_json(item['input_catalog']))
+            cat = Catalog(s3().read_json(item['catalog']))
             catalogs.append(cat)
         logger.debug(f"Retrieved {len(catalogs)} input catalogs")
         return cls(catalogs, state_items=items)

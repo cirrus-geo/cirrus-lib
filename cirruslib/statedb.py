@@ -117,13 +117,16 @@ class StateDB:
 
     def get_items_page(self, collections_workflow: str,
                        state: Optional[str]=None, since: Optional[str]=None,
-                       limit=100, nextkey: str=None) -> List[Dict]:
+                       limit=100, nextkey: str=None, sort_ascending: Optional[bool]=False,
+                       sort_index: Optional[str]=None) -> List[Dict]:
         """Get Items by query
 
         Args:
             collections_workflow (str): /-separated list of input collections_workflow
-            state (str): State of Items to get (PROCESSING, COMPLETED, FAILED, INVALID)
+            state (Optional[str], optional): State of Items to get (PROCESSING, COMPLETED, FAILED, INVALID)
             since (Optional[str], optional): Get Items since this amount of time in the past. Defaults to None.
+            sort_ascending (Optional[bool], optional): Determines which direction the index of the results will be sorted. Defaults to False.
+            sort_index (Optional[str], optional): Determines which index to use for sorting, if not applying a filter (state_updated, updated). Defaults to None.
 
         Returns:
             Dict: List of Items
@@ -134,9 +137,9 @@ class StateDB:
         if nextkey:
             dbitem = self.get_dbitem(nextkey)
             startkey = { key: dbitem[key] for key in ['collections_workflow', 'itemids', 'state_updated', 'updated']}
-            resp = self.query(collections_workflow, state=state, since=since, Limit=limit, ExclusiveStartKey=startkey)
+            resp = self.query(collections_workflow, state=state, since=since, sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit, ExclusiveStartKey=startkey, )
         else:
-            resp = self.query(collections_workflow, state=state, since=since, Limit=limit)
+            resp = self.query(collections_workflow, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
         for i in resp['Items']:
             items['items'].append(self.dbitem_to_item(i))
         if 'LastEvaluatedKey' in resp:
@@ -307,7 +310,7 @@ class StateDB:
         return response
 
     def query(self, collections_workflow: str, state: str=None, since: str=None,
-              select: str='ALL_ATTRIBUTES', **kwargs) -> Dict:
+              select: str='ALL_ATTRIBUTES', sort_ascending: bool=False, sort_index: str='updated', **kwargs) -> Dict:
         """Perform a single Query on a DynamoDB index
 
         Args:
@@ -315,12 +318,15 @@ class StateDB:
             state (str, optional): The state of the Item. Defaults to None.
             since (str, optional): Query for items since this time. Defaults to None.
             select (str, optional): DynamoDB Select statement (ALL_ATTRIBUTES, COUNT). Defaults to 'ALL_ATTRIBUTES'.
+            sort_ascending (bool, optional): Determines which direction the index of the results will be sorted.
+                Defaults to False/Descending.
+            sort_index (str, optional): Determines which index to use for sorting, if not applying a filter (default, state_updated, updated)
+                If default, sorting will use primary index and sort by item_ids
 
         Returns:
             Dict: DynamoDB response
         """
-        # default to using primary index
-        index = None
+        index = None if sort_index == 'default' else sort_index
 
         # always use the hash of the table which is same in all Global Secondary Indices
         expr = Key('collections_workflow').eq(collections_workflow)
@@ -339,9 +345,9 @@ class StateDB:
             expr = expr & Key(index).begins_with(state)
 
         if index:
-            resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, **kwargs)
+            resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, ScanIndexForward=sort_ascending, **kwargs)
         else:
-            resp = self.table.query(KeyConditionExpression=expr, Select=select, **kwargs)
+            resp = self.table.query(KeyConditionExpression=expr, Select=select,  ScanIndexForward=sort_ascending, **kwargs)
 
         return resp
 

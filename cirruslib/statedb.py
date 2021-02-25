@@ -327,6 +327,7 @@ class StateDB:
             Dict: DynamoDB response
         """
         index = None if sort_index == 'default' else sort_index
+        
 
         # always use the hash of the table which is same in all Global Secondary Indices
         expr = Key('collections_workflow').eq(collections_workflow)
@@ -343,6 +344,12 @@ class StateDB:
         elif state:
             index = 'state_updated'
             expr = expr & Key(index).begins_with(state)
+
+        keys = ['collections_workflow', 'itemids']
+        if index:
+            keys.append(index)
+        if 'ExclusiveStartKey' in kwargs:
+            kwargs['ExclusiveStartKey'] = {k: kwargs['ExclusiveStartKey'][k] for k in keys}
 
         if index:
             resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, ScanIndexForward=sort_ascending, **kwargs)

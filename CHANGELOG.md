@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+- Race condition when setting processing of new catalogs
+- Pagination of items in Cirrus API
+
+### Security
+
+
 ## [v0.4.2] - 2021-01-12
 
 ### Added
@@ -113,7 +128,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Initial Release
 
-[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/master...develop
+[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.2...main
 [v0.4.2]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.1...v0.4.2
 [v0.4.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.0...v0.4.1
 [v0.4.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.3.3...v0.4.0

@@ -13,7 +13,7 @@ from boto3utils import s3
 from cirruslib.statedb import StateDB
 from cirruslib.logging import get_task_logger
 from cirruslib.transfer import get_s3_session
-from cirruslib.utils import get_path
+from cirruslib.utils import get_path, query_match
 
 # envvars
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET', None)
@@ -142,6 +142,18 @@ class Catalog(dict):
             return {'url': url}
         else:
             return dict(self)
+
+    def get_item_by_id(self, item_id):
+        query_properties = self['process']['item_ids'].get(item_id, {})
+        if query:
+            for item in self['features']:
+                if query_match(item, query):
+                    return item
+        else:
+            msg = f"unable to find item, please check query parameters"
+            logger.error(msg)
+            raise Exception(msg)
+
 
     # publish the items in this catalog
     def publish_to_s3(self, bucket, public=False) -> List:

@@ -74,6 +74,12 @@ def get_path(item: Dict, template: str='${collection}/${id}') -> str:
             subs[key] = item['properties'][key.replace('__colon__', ':')]
     return Template(_template).substitute(**subs).replace('__colon__', ':')
 
+def query_match(item, props)
+    prop_checks = []
+    for prop in props:
+        prop_checks.append(item['properties'].get(prop, '') == props[prop])
+    return all(prop_checks)
+
 
 # from https://gist.github.com/angstwad/bf22d1822c38a92ec0a9#gistcomment-2622319
 def dict_merge(dct, merge_dct, add_keys=True):

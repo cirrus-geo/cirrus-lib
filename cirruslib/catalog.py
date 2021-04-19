@@ -13,7 +13,7 @@ from boto3utils import s3
 from cirruslib.statedb import StateDB
 from cirruslib.logging import get_task_logger
 from cirruslib.transfer import get_s3_session
-from cirruslib.utils import get_path, query_match
+from cirruslib.utils import get_path, property_match
 
 # envvars
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET', None)
@@ -143,14 +143,14 @@ class Catalog(dict):
         else:
             return dict(self)
 
-    def get_item_by_id(self, item_id):
-        query_properties = self['process']['item_ids'].get(item_id, {})
-        if query_properties:
+    def get_item_by_properties(self, key):
+        properties = self['process']['item_queries'].get(key, {})
+        if properties:
             for item in self['features']:
-                if query_match(item, query_properties):
+                if property_match(item, properties):
                     return item
         else:
-            msg = f"unable to find item, please check query parameters"
+            msg = f"unable to find item, please check properties parameters"
             logger.error(msg)
             raise Exception(msg)
 

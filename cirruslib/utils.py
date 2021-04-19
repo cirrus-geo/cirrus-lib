@@ -74,7 +74,7 @@ def get_path(item: Dict, template: str='${collection}/${id}') -> str:
             subs[key] = item['properties'][key.replace('__colon__', ':')]
     return Template(_template).substitute(**subs).replace('__colon__', ':')
 
-def query_match(item, props)
+def property_match(item, props)
     prop_checks = []
     for prop in props:
         prop_checks.append(item['properties'].get(prop, '') == props[prop])

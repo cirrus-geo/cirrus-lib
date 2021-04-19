@@ -145,9 +145,9 @@ class Catalog(dict):
 
     def get_item_by_id(self, item_id):
         query_properties = self['process']['item_ids'].get(item_id, {})
-        if query:
+        if query_properties:
             for item in self['features']:
-                if query_match(item, query):
+                if query_match(item, query_properties):
                     return item
         else:
             msg = f"unable to find item, please check query parameters"

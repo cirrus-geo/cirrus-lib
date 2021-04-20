@@ -46,6 +46,10 @@ class TestClassMethods(unittest.TestCase):
 
     def test_get_features_by_properties(self):
         data = self.open_fixture()
-        data['process']['item_queries'] = {'test': {'platform':'sentinel-2b'}}
+        data['process']['item_queries'] = {
+            'test': {'platform':'sentinel-2b'},
+            'empty-test': {'platform': 'test-platform'}
+        }
         cat = Catalog.from_payload(data)
         assert(cat.get_features_by_properties("test") == data['features'])
+        assert(cat.get_features_by_properties("empty-test") == [])

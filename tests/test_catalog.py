@@ -44,12 +44,12 @@ class TestClassMethods(unittest.TestCase):
         assert(attr['cloud_cover']['StringValue'] == '51.56')
         assert(attr['datetime']['StringValue'] == '2020-11-03T15:22:26Z')
 
-    def test_get_features_by_properties(self):
+    def test_get_items_by_properties(self):
         data = self.open_fixture()
         data['process']['item_queries'] = {
             'test': {'platform':'sentinel-2b'},
             'empty-test': {'platform': 'test-platform'}
         }
         cat = Catalog.from_payload(data)
-        assert(cat.get_features_by_properties("test") == data['features'])
-        assert(cat.get_features_by_properties("empty-test") == [])
+        assert(cat.get_items_by_properties("test") == data['features'])
+        assert(cat.get_items_by_properties("empty-test") == [])

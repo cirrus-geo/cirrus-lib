@@ -143,7 +143,7 @@ class Catalog(dict):
         else:
             return dict(self)
 
-    def get_features_by_properties(self, key):
+    def get_items_by_properties(self, key):
         properties = self['process']['item_queries'].get(key, {})
         features = []
         if properties:

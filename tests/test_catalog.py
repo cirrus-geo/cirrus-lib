@@ -43,3 +43,9 @@ class TestClassMethods(unittest.TestCase):
         attr = Catalog.sns_attributes(cat['features'][0])
         assert(attr['cloud_cover']['StringValue'] == '51.56')
         assert(attr['datetime']['StringValue'] == '2020-11-03T15:22:26Z')
+
+    def test_get_features_by_properties(self):
+        data = self.open_fixture()
+        data['process']['item_queries'] = {'test': {'platform':'sentinel-2b'}}
+        cat = Catalog.from_payload(data)
+        assert(cat.get_features_by_properties("test") == data['features'])

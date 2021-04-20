@@ -143,16 +143,18 @@ class Catalog(dict):
         else:
             return dict(self)
 
-    def get_item_by_properties(self, key):
+    def get_features_by_properties(self, key):
         properties = self['process']['item_queries'].get(key, {})
+        features = []
         if properties:
-            for item in self['features']:
-                if property_match(item, properties):
-                    return item
+            for feature in self['features']:
+                if property_match(feature, properties):
+                    features.append(feature)
         else:
             msg = f"unable to find item, please check properties parameters"
             logger.error(msg)
             raise Exception(msg)
+        return features
 
 
     # publish the items in this catalog

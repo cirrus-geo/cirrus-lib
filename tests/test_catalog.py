@@ -47,7 +47,7 @@ class TestClassMethods(unittest.TestCase):
 
     def test_get_items_by_properties(self):
         data = self.open_fixture()
-        data['process']['item_queries'] = {
+        data['process']['item-queries'] = {
             'test': {'platform':'sentinel-2b'},
             'empty-test': {'platform': 'test-platform'}
         }
@@ -57,7 +57,7 @@ class TestClassMethods(unittest.TestCase):
 
     def test_get_item_by_properties(self):
         data = self.open_fixture()
-        data['process']['item_queries'] = {
+        data['process']['item-queries'] = {
             'feature1': {'platform':'sentinel-2b'},
             'feature2': {'platform': 'test-platform'}
         }

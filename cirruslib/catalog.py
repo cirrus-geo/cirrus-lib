@@ -160,10 +160,12 @@ class Catalog(dict):
         features = self.get_items_by_properties(key)
         if len(features) == 1:
             return features
-        else:
+        elif len(features) > 1:
             msg = f"multiple items returned, please check properties parameters, or use get_items_by_properties"
             logger.error(msg)
             raise Exception(msg)
+        else:
+            return None
 
 
     # publish the items in this catalog

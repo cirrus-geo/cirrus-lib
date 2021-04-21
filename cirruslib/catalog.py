@@ -156,6 +156,15 @@ class Catalog(dict):
             raise Exception(msg)
         return features
 
+    def get_item_by_properties(self, key):
+        features = self.get_items_by_properties(key)
+        if len(features) == 1:
+            return features
+        else:
+            msg = f"multiple items returned, please check properties parameters, or use get_items_by_properties"
+            logger.error(msg)
+            raise Exception(msg)
+
 
     # publish the items in this catalog
     def publish_to_s3(self, bucket, public=False) -> List:

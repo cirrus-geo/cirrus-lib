@@ -1,3 +1,4 @@
+import copy
 import os
 import json
 import unittest
@@ -53,3 +54,17 @@ class TestClassMethods(unittest.TestCase):
         cat = Catalog.from_payload(data)
         assert(cat.get_items_by_properties("test") == data['features'])
         assert(cat.get_items_by_properties("empty-test") == [])
+
+    def test_get_item_by_properties(self):
+        data = self.open_fixture()
+        data['process']['item_queries'] = {
+            'feature1': {'platform':'sentinel-2b'},
+            'feature2': {'platform': 'test-platform'}
+        }
+        feature1 = copy.deepcopy(data['features'][0])
+        feature2 = copy.deepcopy(data['features'][0])
+        feature2['properties']['platform'] = 'test-platform'
+        data['features'] = [feature1, feature2]
+        cat = Catalog.from_payload(data)
+        assert(len(cat.get_item_by_properties("feature1")) == 1)
+        assert(len(cat.get_item_by_properties("feature2")) == 1)

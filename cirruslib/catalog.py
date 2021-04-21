@@ -144,7 +144,7 @@ class Catalog(dict):
             return dict(self)
 
     def get_items_by_properties(self, key):
-        properties = self['process']['item_queries'].get(key, {})
+        properties = self['process']['item-queries'].get(key, {})
         features = []
         if properties:
             for feature in self['features']:

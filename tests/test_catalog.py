@@ -66,5 +66,5 @@ class TestClassMethods(unittest.TestCase):
         feature2['properties']['platform'] = 'test-platform'
         data['features'] = [feature1, feature2]
         cat = Catalog.from_payload(data)
-        assert(len(cat.get_item_by_properties("feature1")) == 1)
-        assert(len(cat.get_item_by_properties("feature2")) == 1)
+        assert(cat.get_item_by_properties("feature1") == feature1)
+        assert(cat.get_item_by_properties("feature2") == feature2)

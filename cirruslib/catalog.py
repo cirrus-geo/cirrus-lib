@@ -299,21 +299,29 @@ class Catalog(dict):
         """
         assert(CATALOG_BUCKET)
 
+        arn = os.getenv('BASE_WORKFLOW_ARN') + self['process']['workflow']
+
         # start workflow
         try:
             # add input catalog to s3
             url = f"s3://{CATALOG_BUCKET}/{self['id']}/input.json"
             s3().upload_json(self, url)
 
+            # create DynamoDB record - this overwrites existing states other than PROCESSING
+            resp = statedb.claim_processing(self['id'])
+
             # invoke step function
-            arn = os.getenv('BASE_WORKFLOW_ARN') + self['process']['workflow']
             self.logger.debug(f"Running Step Function {arn}")
             exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
 
-            # create DynamoDB record - this will always overwrite any existing process
+            # add execution to DynamoDB record
             resp = statedb.set_processing(self['id'], exe_response['executionArn'])
-            
+
             return self['id']
+        except statedb.db.meta.client.exceptions.ConditionalCheckFailedException:
+            msg = f"Already in PROCESSING state"
+            self.logger.warning(msg)
+            return None
         except Exception as err:
             msg = f"failed starting workflow ({err})"
             self.logger.error(msg, exc_info=True)
@@ -428,7 +436,9 @@ class Catalogs(object):
             #    logger.info(f"Skipping {cat['id']}, in {state} state")
             #    continue
             if state in ['FAILED', ''] or _replace:
-                catids.append(cat.process())
+                catid = cat.process()
+                if catid is None:
+                    catids.append(catid)
             else:
                 logger.info(f"Skipping, input already in {state} state")
                 continue

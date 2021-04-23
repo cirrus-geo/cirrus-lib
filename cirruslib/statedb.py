@@ -195,6 +195,30 @@ class StateDB:
             states[item['catid']] = item['state']
         return states
 
+    def claim_processing(self, catid):
+        """ Sets catid to PROCESSING to claim it (preventing other runs) """
+        now = datetime.now(timezone.utc).isoformat()
+        key = self.catid_to_key(catid)
+
+        expr = (
+            'SET '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated'
+        )
+        response = self.table.update_item(
+            Key=key,
+            UpdateExpression=expr,
+            ConditionExpression='NOT begins_with(state_updated, :proc)',
+            ExpressionAttributeValues={
+                ':created': now,
+                ':state_updated': f"PROCESSING_{now}",
+                ':updated': now,
+                ':proc': "PROCESSING"
+            }
+        )
+        logger.debug("Claimed processing", extra=key)
+        return response
+
     def set_processing(self, catid, execution):
         """ Adds execution to existing item or creates new """
         now = datetime.now(timezone.utc).isoformat()
@@ -327,6 +351,7 @@ class StateDB:
             Dict: DynamoDB response
         """
         index = None if sort_index == 'default' else sort_index
+        
 
         # always use the hash of the table which is same in all Global Secondary Indices
         expr = Key('collections_workflow').eq(collections_workflow)
@@ -343,6 +368,12 @@ class StateDB:
         elif state:
             index = 'state_updated'
             expr = expr & Key(index).begins_with(state)
+
+        keys = ['collections_workflow', 'itemids']
+        if index:
+            keys.append(index)
+        if 'ExclusiveStartKey' in kwargs:
+            kwargs['ExclusiveStartKey'] = {k: kwargs['ExclusiveStartKey'][k] for k in keys}
 
         if index:
             resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, ScanIndexForward=sort_ascending, **kwargs)

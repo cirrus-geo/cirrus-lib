@@ -6,10 +6,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
-## [v0.4.3] - 2021-04-23
+## [v0.4.4] - 2021-04-23
 
 ### Added
 - Ability to query catalog for item(s) based on property values, use either `get_items_by_properties` or `get_item_by_properties` methods
+
+## [v0.4.3] - 2021-03-30
+
+### Fixed
+- Race condition when setting processing of new catalogs
+- Pagination of items in Cirrus API
 
 ## [v0.4.2] - 2021-01-12
 

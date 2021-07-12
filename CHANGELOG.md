@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.4.5] - 2021-07-12
+
+### Fixed
+- Don't log S3 credentials
+
 ## [v0.4.4] - 2021-04-23
 
 ### Added
@@ -124,7 +129,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Initial Release
 
-[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.3...main
+[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.5...main
+[v0.4.5]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.4...v0.4.5
+[v0.4.4]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.3...v0.4.4
 [v0.4.3]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.2...v0.4.3
 [v0.4.2]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.1...v0.4.2
 [v0.4.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.0...v0.4.1

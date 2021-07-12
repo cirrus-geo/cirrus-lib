@@ -40,17 +40,16 @@ def get_s3_session(bucket: str=None, s3url: str=None, **kwargs) -> s3:
         return s3_sessions[bucket]
     # otherwise, create new session for this bucket
     creds = deepcopy(kwargs)
-    
+
     try:
         # get credentials from AWS secret
         secret_name = f"cirrus-creds-{bucket}"
         _creds = secrets.get_secret(secret_name)
         creds.update(_creds)
-        logger.debug(f"Using credentials for bucket {bucket}: {json.dumps(creds)}")
     except ClientError:
         # using default credentials
         pass
-        
+
 
     requester_pays = creds.pop('requester_pays', False)
     session = boto3.Session(**creds)
@@ -122,7 +121,7 @@ def download_item_assets(item: Dict, path: str='', assets: Optional[List[str]]=N
     return _item
 
 
-def upload_item_assets(item: Dict, assets: List[str]=None, public_assets: List[str]=[], 
+def upload_item_assets(item: Dict, assets: List[str]=None, public_assets: List[str]=[],
                        path_template: str='${collection}/${id}', s3_urls: bool=False,
                        headers: Dict={}, s3_session: s3=None, **kwargs) -> Dict:
     """Upload Item assets to s3 bucket

@@ -1,5 +1,5 @@
 # import moto before any boto3 module
-from moto import mock_s3
+from moto import mock_s3, mock_secretsmanager
 import boto3
 import os
 import unittest
@@ -12,6 +12,7 @@ testpath = f"{os.path.dirname(__file__)}/test_transfer"
 testbucket = 'testbucket'
 
 @mock_s3
+@mock_secretsmanager
 class Test(unittest.TestCase):
 
     def setUp(self):

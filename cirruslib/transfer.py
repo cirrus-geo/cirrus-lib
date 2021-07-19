@@ -47,11 +47,10 @@ def get_s3_session(bucket: str=None, s3url: str=None, **kwargs) -> s3:
         _creds = secrets.get_secret(secret_name)
         creds.update(_creds)
     except ClientError as e:
-        if e.response["Error"]["Code"] == "ResourceNotFoundException":
-            logger.info(f"Secret not found, using default credentials: '{secret_name}'")
-            pass
-        # some other client error we cannot handle
-        raise e
+        if e.response["Error"]["Code"] != "ResourceNotFoundException":
+            # some other client error we cannot handle
+            raise e
+        logger.info(f"Secret not found, using default credentials: '{secret_name}'")
 
 
     requester_pays = creds.pop('requester_pays', False)

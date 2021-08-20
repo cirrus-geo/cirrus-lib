@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.5.0] - 2021-08-20
+
+### Removed
+- `stac` module and global PySTAC dependency
+
 ## [v0.4.6] - 2021-07-15
 
 ### Changed
@@ -135,7 +140,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Initial Release
 
-[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.6...main
+[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.5.0...main
+[v0.5.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.6...v0.5.0
 [v0.4.6]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.5...v0.4.6
 [v0.4.5]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.4...v0.4.5
 [v0.4.4]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.3...v0.4.4

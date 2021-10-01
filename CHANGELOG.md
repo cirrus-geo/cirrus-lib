@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.5.1] - 2021-10-01
+
+### Changed
+- The `outputs` parameter to `stateddb.set_completed()` is no longer required, but now optional
+- Added `statedb.set_outputs() to set outputs indepentent of execution state
+
 ## [v0.5.0] - 2021-08-20
 
 ### Removed

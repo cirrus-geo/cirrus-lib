@@ -41,7 +41,7 @@ def setup_table():
         schema = json.loads(f.read())
     table = client.create_table(**schema)
     table.meta.client.get_waiter('table_exists').wait(TableName=table_name)
-    return StateDB(table_name) 
+    return StateDB(table_name)
 
 
 class TestClassMethods(unittest.TestCase):
@@ -170,12 +170,17 @@ class TestDbItems(unittest.TestCase):
         assert(dbitem['state_updated'].startswith('PROCESSING'))
         assert(dbitem['executions'] == ['testarn'])
 
-    def test_set_completed(self):
+    def test_set_outputs(self):
         resp = self.statedb.set_completed(test_item['id'], outputs=['output-item'])
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['state_updated'].startswith('COMPLETED'))
         assert(dbitem['outputs'][0] == 'output-item')
+
+    def test_set_completed(self):
+        resp = self.statedb.set_completed(test_item['id'])
+        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+        dbitem = self.statedb.get_dbitem(test_item['id'])
+        assert(dbitem['state_updated'].startswith('COMPLETED'))
 
     def test_set_failed(self):
         resp = self.statedb.set_failed(test_item['id'], msg='test failure')
@@ -183,6 +188,13 @@ class TestDbItems(unittest.TestCase):
         dbitem = self.statedb.get_dbitem(test_item['id'])
         assert(dbitem['state_updated'].startswith('FAILED'))
         assert(dbitem['last_error'] == 'test failure')
+
+    def test_set_completed_with_outputs(self):
+        resp = self.statedb.set_completed(test_item['id'], outputs=['output-item2'])
+        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+        dbitem = self.statedb.get_dbitem(test_item['id'])
+        assert(dbitem['state_updated'].startswith('COMPLETED'))
+        assert(dbitem['outputs'][0] == 'output-item2')
 
     def test_set_invalid(self):
         resp = self.statedb.set_invalid(test_item['id'], msg='test failure')
@@ -202,7 +214,7 @@ class TestDbItems(unittest.TestCase):
                 assert(count == 1)
         count = self.statedb.get_counts(test_dbitem['collections_workflow'], since='1h')
 
-        
+
     def _test_get_counts_paging(self):
         for i in range(5000):
             self.statedb.set_processing(test_item['id'] + f"_{i}", execution='arn::test')

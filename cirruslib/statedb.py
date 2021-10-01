@@ -39,7 +39,7 @@ class StateDB:
     def delete(self):
         # delete table (used for testing)
         self.table.delete()
-        self.table.wait_until_not_exists()        
+        self.table.wait_until_not_exists()
 
     def get_dbitem(self, catid: str) -> Dict:
         """Get a DynamoDB item
@@ -242,9 +242,9 @@ class StateDB:
             }
         )
         logger.debug("Add execution", extra=key.update({'execution': execution}))
-        return response   
+        return response
 
-    def set_completed(self, catid: str, outputs: List[str]) -> str:
+    def set_outputs(self, catid: str, outputs: List[str]) -> str:
         """Set this catalog as COMPLETED
 
         Args:
@@ -260,7 +260,7 @@ class StateDB:
         expr = (
             'SET '
             'created = if_not_exists(created, :created), '
-            'state_updated=:state_updated, updated=:updated, '
+            'updated=:updated, '
             'outputs=:outputs'
         )
         response = self.table.update_item(
@@ -268,12 +268,47 @@ class StateDB:
             UpdateExpression=expr,
             ExpressionAttributeValues={
                 ':created': now,
-                ':state_updated': f"COMPLETED_{now}",
                 ':updated': now,
                 ':outputs': outputs
             }
         )
-        logger.debug("set completed", extra=key.update({'outputs': outputs}))
+        logger.debug("set outputs", extra=key.update({'outputs': outputs}))
+        return response
+
+    def set_completed(self, catid: str, outputs: Optional[List[str]]=None) -> str:
+        """Set this catalog as COMPLETED
+
+        Args:
+            catid (str): The Cirrus Catalog
+            outputs (Optional[[str]], optional): List of URLs to output Items. Defaults to None.
+
+        Returns:
+            str: DynamoDB response
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        key = self.catid_to_key(catid)
+
+        expr = (
+            'SET '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated'
+        )
+        expr_attrs = {
+            ':created': now,
+            ':state_updated': f"COMPLETED_{now}",
+            ':updated': now,
+        }
+
+        if outputs is not None:
+            expr += ', outputs=:outputs'
+            expr_attrs[':outputs'] = outputs
+
+        response = self.table.update_item(
+            Key=key,
+            UpdateExpression=expr,
+            ExpressionAttributeValues=expr_attrs,
+        )
+        logger.debug("set outputs", extra=key.update({'outputs': outputs}))
         return response
 
     def set_failed(self, catid, msg):
@@ -351,7 +386,7 @@ class StateDB:
             Dict: DynamoDB response
         """
         index = None if sort_index == 'default' else sort_index
-        
+
 
         # always use the hash of the table which is same in all Global Secondary Indices
         expr = Key('collections_workflow').eq(collections_workflow)

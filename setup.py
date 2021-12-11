@@ -1,24 +1,28 @@
 #!/usr/bin/env python
+import os
+import os.path
+
 from setuptools import setup, find_packages
-from imp import load_source
-from os import path
-import io
 
-__version__ = load_source('cirruslib.version', 'cirruslib/version.py').__version__
 
-here = path.abspath(path.dirname(__file__))
+HERE = os.path.abspath(os.path.dirname(__file__))
+VERSION = os.environ.get('CIRRUS_VERSION', '0.0.0')
 
-# get the dependencies and installs
-with io.open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
-    all_reqs = f.read().split('\n')
 
-install_requires = [x.strip() for x in all_reqs if 'git+' not in x]
-dependency_links = [x.strip().replace('git+', '') for x in all_reqs if 'git+' not in x]
+with open(os.path.join(HERE, 'README.md'), encoding='utf-8') as f:
+    readme = f.read()
+
+with open(os.path.join(HERE, 'requirements.txt'), encoding='utf-8') as f:
+    reqs = f.read().split('\n')
+
+install_requires = [x.strip() for x in reqs if 'git+' not in x]
+dependency_links = [x.strip().replace('git+', '') for x in reqs if 'git+' not in x]
+
 
 setup(
     name='cirrus-lib',
     author='Matthew Hanson (matthewhanson), Element 84',
-    version=__version__,
+    version=VERSION,
     description='Cirrus Library',
     url='https://github.com/cirrus-geo/cirrus-lib.git',
     license='Apache-2.0',
@@ -29,7 +33,8 @@ setup(
         'Programming Language :: Python :: 3.8'
     ],
     keywords='',
-    packages=find_packages(exclude=['docs', 'test*']),
+    packages=find_packages('src'),
+    package_dir={'': 'src'},
     include_package_data=True,
     install_requires=install_requires,
     dependency_links=dependency_links,

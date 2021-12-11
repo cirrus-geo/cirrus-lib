@@ -110,7 +110,18 @@ def download_item_assets(item: Dict, path: str='', assets: Optional[List[str]]=N
         if url.startswith('s3://'):
             parts = s3.urlparse(url)
             s3_session = get_s3_session(parts['bucket'])
-            filename = s3_session.download(url, path=path)
+            tries = 0
+            max_tries = 30
+            while tries < max_tries:
+                try:
+                    filename = s3_session.download(url, path=path)
+                    break
+                except ClientError as e:
+                    logger.exception('failed download of url: %s', url)
+                tries += 1
+            else:
+                raise Exception('max retries exceeded for file download')
+
         # general http source
         elif url.startswith('http'):
             filename = download_from_http(url, path=path)

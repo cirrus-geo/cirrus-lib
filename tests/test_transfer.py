@@ -5,7 +5,7 @@ import os
 import unittest
 
 from boto3utils import s3
-from cirruslib import transfer
+from cirrus.lib import transfer
 from shutil import rmtree
 
 testpath = f"{os.path.dirname(__file__)}/test_transfer"

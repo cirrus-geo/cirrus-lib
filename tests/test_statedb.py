@@ -10,7 +10,7 @@ import unittest
 from copy import deepcopy
 from datetime import datetime
 from decimal import Decimal
-from cirruslib.statedb import StateDB, STATES
+from cirrus.lib.statedb import StateDB, STATES
 
 ## fixtures
 testpath = os.path.dirname(__file__)

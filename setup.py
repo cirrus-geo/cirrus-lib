@@ -2,7 +2,7 @@
 import os
 import os.path
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 
 
 HERE = os.path.abspath(os.path.dirname(__file__))
@@ -33,7 +33,7 @@ setup(
         'Programming Language :: Python :: 3.8'
     ],
     keywords='',
-    packages=find_packages('src'),
+    packages=find_namespace_packages('src'),
     package_dir={'': 'src'},
     include_package_data=True,
     install_requires=install_requires,

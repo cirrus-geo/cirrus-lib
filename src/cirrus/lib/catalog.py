@@ -10,10 +10,10 @@ from datetime import datetime, timezone
 from typing import Dict, Optional, List
 
 from boto3utils import s3
-from cirruslib.statedb import StateDB
-from cirruslib.logging import get_task_logger
-from cirruslib.transfer import get_s3_session
-from cirruslib.utils import get_path, property_match
+from cirrus.lib.statedb import StateDB
+from cirrus.lib.logging import get_task_logger
+from cirrus.lib.transfer import get_s3_session
+from cirrus.lib.utils import get_path, property_match
 
 # envvars
 CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET', None)
@@ -62,7 +62,7 @@ class Catalog(dict):
         assert(len(self['features']) > 0)
         for item in self['features']:
             if 'links' not in item:
-                item['links'] = [] 
+                item['links'] = []
 
         # update collection IDs of member Items
         self.assign_collections()
@@ -101,14 +101,14 @@ class Catalog(dict):
 
     def update(self):
         if 'collections' in self['process']:
-            # allow overriding of collections name 
+            # allow overriding of collections name
             collections_str = self['process']['collections']
         else:
             # otherwise, get from items
             cols = sorted(list(set([i['collection'] for i in self['features'] if 'collection' in i])))
             input_collections = cols if len(cols) != 0 else 'none'
             collections_str = '/'.join(input_collections)
-        
+
         items_str = '/'.join(sorted(list([i['id'] for i in self['features']])))
         if 'id' not in self:
             self['id'] = f"{collections_str}/workflow-{self['process']['workflow']}/{items_str}"
@@ -218,7 +218,7 @@ class Catalog(dict):
 
             # publish to bucket
             headers = opts.get('headers', {})
-            
+
             extra = {'ContentType': 'application/json'}
             extra.update(headers)
             s3session.upload_json(item, url, public=public, extra=extra)
@@ -261,7 +261,7 @@ class Catalog(dict):
             'bbox.ur_lat': {
                 'DataType': 'Number',
                 'StringValue': str(item['bbox'][3])
-            }     
+            }
         }
         if 'eo:cloud_cover' in item['properties']:
             attr['cloud_cover'] = {
@@ -288,7 +288,7 @@ class Catalog(dict):
         """
         for item in self['features']:
             response = snsclient.publish(TopicArn=topic_arn, Message=json.dumps(item),
-                                        MessageAttributes=self.sns_attributes(item))         
+                                        MessageAttributes=self.sns_attributes(item))
             self.logger.debug(f"Published item to {topic_arn}")
 
     def process(self) -> str:
@@ -425,7 +425,7 @@ class Catalogs(object):
             catalog (Dict): A Cirrus Input Catalog
         """
         catids = []
-        # check existing states            
+        # check existing states
         states = self.get_states()
         for cat in self.catalogs:
             _replace = replace or cat['process'].get('replace', False)

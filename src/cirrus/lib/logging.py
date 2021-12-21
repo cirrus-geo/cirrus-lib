@@ -39,7 +39,7 @@ config = {
           "handlers": ["standard"],
           "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
       },
-      "cirruslib": {
+      "cirrus.lib": {
           "handlers": ["standard"],
           "level": getenv('CIRRUS_LOG_LEVEL', 'DEBUG')
       }

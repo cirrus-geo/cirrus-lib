@@ -3,7 +3,7 @@ import os
 import json
 import unittest
 
-from cirruslib import Catalog
+from cirrus.lib.catalog import Catalog
 
 testpath = os.path.dirname(__file__)
 

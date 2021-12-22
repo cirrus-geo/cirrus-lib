@@ -8,7 +8,7 @@ from botocore.exceptions import ClientError
 from copy import deepcopy
 from dateutil.parser import parse as dateparse
 from os import getenv, path as op
-from cirruslib.utils import get_path
+from cirrus.lib.utils import get_path
 
 from typing import Dict, Optional, List
 

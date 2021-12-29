@@ -42,7 +42,8 @@ jobs:
       - name: Test with pytest
         env:
           AWS_DEFAULT_REGION: us-west-2
-        run: coverage run --source=. -m py.test
-      - name: Upload coverage
-        shell: pwsh
-        run: coverage report -m
+        run: pytest --cov=cirrus --cov-report=xml
+      - name: "Upload coverage to Codecov"
+        uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true

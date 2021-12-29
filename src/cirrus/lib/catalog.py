@@ -488,7 +488,7 @@ class Catalogs(object):
             #    continue
             if state in ['FAILED', ''] or _replace:
                 catid = cat()
-                if catid is None:
+                if catid is not None:
                     catids.append(catid)
             else:
                 logger.info(f"Skipping, input already in {state} state")

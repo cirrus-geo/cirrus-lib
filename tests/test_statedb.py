@@ -51,22 +51,22 @@ class TestClassMethods(unittest.TestCase):
         'itemids': 'item1/item2'
     }
 
-    def test_catid_to_key(self):
-        key = StateDB.catid_to_key(test_item['id'])
+    def test_payload_id_to_key(self):
+        key = StateDB.payload_id_to_key(test_item['id'])
         assert(key['collections_workflow'] == "col1_wf1")
         assert(key['itemids'] == 'item1/item2')
 
-    def test_key_to_catid(self):
-        catid = StateDB.key_to_catid(self.testkey)
-        assert(catid == test_item['id'])
+    def test_key_to_payload_id(self):
+        payload_id = StateDB.key_to_payload_id(self.testkey)
+        assert(payload_id == test_item['id'])
 
-    def test_get_input_catalog_url(self):
-        url = StateDB.get_input_catalog_url(self.testkey)
+    def test_get_input_payload_url(self):
+        url = StateDB.get_input_payload_url(self.testkey)
         assert(f"{test_item['id']}/input.json" in url)
 
     def test_dbitem_to_item(self):
         item = StateDB.dbitem_to_item(test_dbitem)
-        assert(item['catid'] == test_item['id'])
+        assert(item['payload_id'] == test_item['id'])
         assert(item['workflow'] == 'wf1')
         assert(item['state'] == 'QUEUED')
 
@@ -110,7 +110,7 @@ class TestDbItems(unittest.TestCase):
         resp = self.statedb.set_processing(test_item['id'], execution='arn::test1')
         assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
         dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(StateDB.key_to_catid(dbitem) == test_item['id'])
+        assert(StateDB.key_to_payload_id(dbitem) == test_item['id'])
         assert(dbitem['executions'] == ['arn::test1'])
 
         # check that processing adds new execution to list
@@ -137,7 +137,7 @@ class TestDbItems(unittest.TestCase):
         dbitems = self.statedb.get_dbitems(ids)
         assert(len(dbitems) == len(ids))
         for dbitem in dbitems:
-            assert(self.statedb.key_to_catid(dbitem) in ids)
+            assert(self.statedb.key_to_payload_id(dbitem) in ids)
 
     def test_get_dbitems_noitems(self):
         #with self.assertRaises(Exception):

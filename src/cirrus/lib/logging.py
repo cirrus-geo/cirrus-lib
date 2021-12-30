@@ -65,8 +65,8 @@ class DynamicLoggerAdapter(logging.LoggerAdapter):
         return (msg, kwargs)
 
 
-def get_task_logger(*args, catalog, **kwargs):
+def get_task_logger(*args, payload, **kwargs):
     _logger = logging.getLogger(*args, **kwargs)
-    logger = DynamicLoggerAdapter(_logger, catalog, keys=['id', 'stac_version'])
+    logger = DynamicLoggerAdapter(_logger, payload, keys=['id', 'stac_version'])
     return logger
 

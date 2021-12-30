@@ -19,13 +19,13 @@ batch_client = boto3.client('batch')
 def submit_batch_job(payload, arn, queue='basic-ondemand', definition='geolambda-as-batch', name=None):
     # envvars
     STACK_PREFIX = getenv('CIRRUS_STACK')
-    CATALOG_BUCKET = getenv('CIRRUS_CATALOG_BUCKET')
+    PAYLOAD_BUCKET = getenv('CIRRUS_PAYLOAD_BUCKET')
 
     if name is None:
         name = arn.split(':')[-1]
 
     # upload payload to s3
-    url = f"s3://{CATALOG_BUCKET}/batch/{uuid.uuid1()}.json"
+    url = f"s3://{PAYLOAD_BUCKET}/batch/{uuid.uuid1()}.json"
     s3().upload_json(payload, url)
     kwargs = {
         'jobName': name,

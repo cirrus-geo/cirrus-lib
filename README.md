@@ -1,3 +1,7 @@
+[![build-status-image]][build-status]
+[![coverage-status-image]][codecov]
+[![pypi-version]][pypi]
+
 # Cirrus Library
 
 A common set of functions used by the Cirrus geospatial pipeline. This library are convenience functions for interacting with the various Cirrus AWS resources (queues, Lambdas, Batch, DynamoDB, etc.) and should be preferred over writing separate code where possible.
@@ -77,4 +81,9 @@ This module contains miscellaneous utility functions.
 Cirrus is an open-source pipeline for processing geospatial data in AWS. Cirrus was developed by [Element 84](https://element84.com/) originally under a [NASA Access project].
 
 
-
+[build-status-image]: https://github.com/cirrus-geo/cirrus-lib/actions/workflows/python-test.yml/badge.svg
+[build-status]: https://github.com/cirrus-geo/cirrus-lib/actions/workflows/python-test.yml
+[coverage-status-image]: https://img.shields.io/codecov/c/github/cirrus-geo/cirrus-lib/master.svg
+[codecov]: https://codecov.io/github/cirrus-geo/cirrus-lib?branch=master
+[pypi-version]: https://img.shields.io/pypi/v/cirrus-lib.svg
+[pypi]: https://pypi.org/project/cirrus-lib/

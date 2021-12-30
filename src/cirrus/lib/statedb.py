@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, List
 
 # envvars
-CATALOG_BUCKET = os.getenv('CIRRUS_CATALOG_BUCKET')
+PAYLOAD_BUCKET = os.getenv('CIRRUS_PAYLOAD_BUCKET')
 
 STATES = ['PROCESSING', 'COMPLETED', 'FAILED', 'INVALID']
 
@@ -30,8 +30,8 @@ class StateDB:
         self.table_name = table_name
         self.table = self.db.Table(table_name)
 
-    def delete_item(self, catid: str):
-        key = self.catid_to_key(catid)
+    def delete_item(self, payload_id: str):
+        key = self.payload_id_to_key(payload_id)
         response = self.table.delete_item(Key=key)
         logger.debug("Removed item", extra=key)
         return response
@@ -41,11 +41,11 @@ class StateDB:
         self.table.delete()
         self.table.wait_until_not_exists()
 
-    def get_dbitem(self, catid: str) -> Dict:
+    def get_dbitem(self, payload_id: str) -> Dict:
         """Get a DynamoDB item
 
         Args:
-            catid (str): Catalog ID
+            payload_id (str): Payload ID
 
         Raises:
             Exception: Error getting item
@@ -53,7 +53,7 @@ class StateDB:
         Returns:
             Dict: DynamoDB Item
         """
-        key=self.catid_to_key(catid)
+        key=self.payload_id_to_key(payload_id)
         try:
             response = self.table.get_item(Key=key)
             return response.get('Item', None)
@@ -62,11 +62,11 @@ class StateDB:
             logger.error(msg, extra=key.update({'error': err}), exc_info=True)
             raise Exception(msg)
 
-    def get_dbitems(self, catids: List[str]) -> List[Dict]:
+    def get_dbitems(self, payload_ids: List[str]) -> List[Dict]:
         """Get multiple DynamoDB Items
 
         Args:
-            catids (List[str]): A List of Catalog IDs
+            payload_ids (List[str]): A List of Payload IDs
 
         Raises:
             Exception: Error getting items
@@ -77,7 +77,7 @@ class StateDB:
         try:
             resp = self.db.meta.client.batch_get_item(RequestItems={
                 self.table_name: {
-                    'Keys': [self.catid_to_key(id) for id in catids]
+                    'Keys': [self.payload_id_to_key(id) for id in payload_ids]
                 }
             })
             items = []
@@ -143,7 +143,7 @@ class StateDB:
         for i in resp['Items']:
             items['items'].append(self.dbitem_to_item(i))
         if 'LastEvaluatedKey' in resp:
-            items['nextkey'] = self.key_to_catid(resp['LastEvaluatedKey'])
+            items['nextkey'] = self.key_to_payload_id(resp['LastEvaluatedKey'])
         return items
 
     def get_items(self, *args, limit=None, **kwargs) -> Dict:
@@ -164,41 +164,41 @@ class StateDB:
             return items
         return items[:limit]
 
-    def get_state(self, catid: str) -> str:
+    def get_state(self, payload_id: str) -> str:
         """Get current state of Item
 
         Args:
-            catid (str): The catalog ID
+            payload_id (str): The Payload ID
 
         Returns:
             str: Current state: PROCESSING, COMPLETED, FAILED, INVALID
         """
-        response = self.table.get_item(Key=self.catid_to_key(catid))
+        response = self.table.get_item(Key=self.payload_id_to_key(payload_id))
         if 'Item' in response:
             return response['Item']['state_updated'].split('_')[0]
         else:
             # assuming no such item in database
             return ""
 
-    def get_states(self, catids: List[str]) -> Dict[str, str]:
+    def get_states(self, payload_ids: List[str]) -> Dict[str, str]:
         """Get current state of items
 
         Args:
-            catids (List[str]): List of catalog IDs
+            payload_ids (List[str]): List of Payload IDs
 
         Returns:
-            Dict[str, str]: Dictionary of catalog IDs to state
+            Dict[str, str]: Dictionary of Payload IDs to state
         """
         states = {}
-        for dbitem in self.get_dbitems(catids):
+        for dbitem in self.get_dbitems(payload_ids):
             item = self.dbitem_to_item(dbitem)
-            states[item['catid']] = item['state']
+            states[item['payload_id']] = item['state']
         return states
 
-    def claim_processing(self, catid):
-        """ Sets catid to PROCESSING to claim it (preventing other runs) """
+    def claim_processing(self, payload_id):
+        """ Sets payload_id to PROCESSING to claim it (preventing other runs) """
         now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catid)
+        key = self.payload_id_to_key(payload_id)
 
         expr = (
             'SET '
@@ -219,10 +219,10 @@ class StateDB:
         logger.debug("Claimed processing", extra=key)
         return response
 
-    def set_processing(self, catid, execution):
+    def set_processing(self, payload_id, execution):
         """ Adds execution to existing item or creates new """
         now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catid)
+        key = self.payload_id_to_key(payload_id)
 
         expr = (
             'SET '
@@ -244,18 +244,18 @@ class StateDB:
         logger.debug("Add execution", extra=key.update({'execution': execution}))
         return response
 
-    def set_outputs(self, catid: str, outputs: List[str]) -> str:
-        """Set this catalog as COMPLETED
+    def set_outputs(self, payload_id: str, outputs: List[str]) -> str:
+        """Set this item as COMPLETED
 
         Args:
-            catid (str): The Cirrus Catalog
+            payload_id (str): The Cirrus Payload
             outputs ([str]): List of URLs to output Items
 
         Returns:
             str: DynamoDB response
         """
         now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catid)
+        key = self.payload_id_to_key(payload_id)
 
         expr = (
             'SET '
@@ -275,18 +275,18 @@ class StateDB:
         logger.debug("set outputs", extra=key.update({'outputs': outputs}))
         return response
 
-    def set_completed(self, catid: str, outputs: Optional[List[str]]=None) -> str:
-        """Set this catalog as COMPLETED
+    def set_completed(self, payload_id: str, outputs: Optional[List[str]]=None) -> str:
+        """Set this item as COMPLETED
 
         Args:
-            catid (str): The Cirrus Catalog
+            payload_id (str): The Cirrus Payload
             outputs (Optional[[str]], optional): List of URLs to output Items. Defaults to None.
 
         Returns:
             str: DynamoDB response
         """
         now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catid)
+        key = self.payload_id_to_key(payload_id)
 
         expr = (
             'SET '
@@ -311,11 +311,11 @@ class StateDB:
         logger.debug("set outputs", extra=key.update({'outputs': outputs}))
         return response
 
-    def set_failed(self, catid, msg):
+    def set_failed(self, payload_id, msg):
         """ Adds new item as failed """
         """ Adds new item with state function execution """
         now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catid)
+        key = self.payload_id_to_key(payload_id)
 
         expr = (
             'SET '
@@ -336,18 +336,18 @@ class StateDB:
         logger.debug("set failed", extra=key.update({'last_error': msg}))
         return response
 
-    def set_invalid(self, catid: str, msg: str) -> str:
-        """Set this catalog as INVALID
+    def set_invalid(self, payload_id: str, msg: str) -> str:
+        """Set this item as INVALID
 
         Args:
-            catid (str): The Cirrus Catalog
+            payload_id (str): The Cirrus Payload
             msg (str): An error message to include in DynamoDB Item
 
         Returns:
             str: DynamoDB response
         """
         now = datetime.now(timezone.utc).isoformat()
-        key = self.catid_to_key(catid)
+        key = self.payload_id_to_key(payload_id)
 
         expr = (
             'SET '
@@ -418,16 +418,16 @@ class StateDB:
         return resp
 
     @classmethod
-    def catid_to_key(cls, catid: str) -> Dict:
-        """Create DynamoDB Key from catalog ID
+    def payload_id_to_key(cls, payload_id: str) -> Dict:
+        """Create DynamoDB Key from Payload ID
 
         Args:
-            catid (str): The catalog ID
+            payload_id (str): The Payload ID
 
         Returns:
             Dict: Dictionary containing the DynamoDB Key
         """
-        parts1 = catid.split('/workflow-')
+        parts1 = payload_id.split('/workflow-')
         parts2 = parts1[1].split('/', maxsplit=1)
         key = {
             'collections_workflow': parts1[0] + f"_{parts2[0]}",
@@ -436,36 +436,36 @@ class StateDB:
         return key
 
     @classmethod
-    def key_to_catid(cls, key: Dict) -> str:
-        """Get catalog ID given a DynamoDB Key
+    def key_to_payload_id(cls, key: Dict) -> str:
+        """Get Payload ID given a DynamoDB Key
 
         Args:
             key (Dict): DynamoDB Key
 
         Returns:
-            str: Catalog ID
+            str: Payload ID
         """
         parts = key['collections_workflow'].rsplit('_', maxsplit=1)
         return f"{parts[0]}/workflow-{parts[1]}/{key['itemids']}"
 
     @classmethod
-    def get_input_catalog_url(self, dbitem):
-        catid = self.key_to_catid(dbitem)
-        return f"s3://{CATALOG_BUCKET}/{catid}/input.json"
+    def get_input_payload_url(self, dbitem):
+        payload_id = self.key_to_payload_id(dbitem)
+        return f"s3://{PAYLOAD_BUCKET}/{payload_id}/input.json"
 
     @classmethod
     def dbitem_to_item(cls, dbitem: Dict, region: str=os.getenv('AWS_REGION', 'us-west-2')) -> Dict:
         state, updated = dbitem['state_updated'].split('_')
         collections, workflow = dbitem['collections_workflow'].rsplit('_', maxsplit=1)
         item = {
-            "catid": cls.key_to_catid(dbitem),
+            "payload_id": cls.key_to_payload_id(dbitem),
             "collections": collections,
             "workflow": workflow,
             "items": dbitem['itemids'],
             "state": state,
             "created": dbitem['created'],
             "updated": dbitem['updated'],
-            "catalog": cls.get_input_catalog_url(dbitem)
+            "payload": cls.get_input_payload_url(dbitem)
         }
         if 'executions' in dbitem:
             base_url = f"https://{region}.console.aws.amazon.com/states/home?region={region}#/executions/details/"

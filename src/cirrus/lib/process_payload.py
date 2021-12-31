@@ -203,7 +203,7 @@ class ProcessPayload(dict):
 
 
     # publish the items in this ProcessPayload
-    def publish_to_s3(self, bucket, public=False) -> List:
+    def publish_items_to_s3(self, bucket, public=False) -> List:
         """Publish all Items to s3
 
         Args:

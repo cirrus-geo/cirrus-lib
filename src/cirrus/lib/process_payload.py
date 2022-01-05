@@ -351,7 +351,7 @@ class ProcessPayload(dict):
         """
         assert(PAYLOAD_BUCKET)
 
-        arn = os.getenv('BASE_WORKFLOW_ARN') + self.process['workflow']
+        arn = os.getenv('CIRRUS_BASE_WORKFLOW_ARN') + self.process['workflow']
 
         # start workflow
         try:

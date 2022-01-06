@@ -68,6 +68,8 @@ setup(
     author='Matthew Hanson (matthewhanson), Element 84',
     version=VERSION,
     description='Cirrus Library',
+    long_description=readme,
+    long_description_content_type='text/markdown',
     url='https://github.com/cirrus-geo/cirrus-lib.git',
     license='Apache-2.0',
     classifiers=[

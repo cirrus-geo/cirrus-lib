@@ -6,6 +6,56 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.6.0] - 2022-01-06
+
+### ⚠️ Breaking changes
+
+* Package now installed in `cirrus` namespace as `cirrus.lib`.
+  Change all imports from `cirruslib` to `cirrus.lib`
+* `Catalog` and `Catalogs` now `ProcessPayload` and `ProcessPayloads`
+* `catalog.py` module renamed `process_payload.py`
+* `ProcessPayload.process()` converted to `__call__()` method
+* `ProcessPayload.process` is now a property that will return the
+  current process definition in the case of a chained process array
+* `ProcessPayload.from_payload()` renamed `from_event()`
+* `ProcessPayload.publish_to_s3()` renamed `publish_items_to_s3()`
+* `ProcessPayload.publish_to_sns()` renamed `publish_items_to_sns()`
+  * Note that `ProcessPayload.publish_to_sns()` still exists but now
+    publishes whole payload to an SNS topic, not each item
+* All instances of the term `catalog` replaced by `payload`
+* All instances of the abbreviation `cat` replaced by `payload`
+* All instances of `catid` replaced by `payload_id`
+* `ProcessPayload.get_catalog()` renamed `get_payload()`
+* `ProcessPayloads.catids` renamed `payload_ids`
+* `ProcessPayloads.from_catids()` renamed `from_payload_ids()`
+* `StateBD.catid_to_key()` renamed `payload_id_to_key()`
+* `StateBD.key_to_catid()` renamed `key_to_payload_id()`
+* `StateBD.get_input_catalog_url()` renamed `get_input_payload_url()`
+* env var `CIRRUS_CATALOG_BUCKET` renamed `CIRRUS_PAYLOAD_BUCKET`
+* env var `BASE_WORKFLOW_ARN` renamed `CIRRUS_BASE_WORKFLOW_ARN`
+
+### Added
+* readme badges by @jkeifer ([#33][i33])
+* support for workflow chaining by @jkeifer ([#32][i32])
+
+### Changed
+* move code under `/src` and change to `cirrus` namespace package
+  by @jkeifer ([#31][i31])
+* `Catalog` renamed to `ProcessPayload` and all references to `catalog`
+  changed to `payload` by @jkeifer ([#34][i34])
+* tests default to `us-west-2` region if not otherwise set in env vars
+  by @jkeifer ([c919fad])
+
+### Fixed
+* exception traceback logging now shows stacktrace @jkeifer ([#30][i30])
+* codecov reporting now works by @jkeifer ([#33][i33])
+* `ProcessPayloads.process()` now returns list of processed `payload_id`s
+  by @jkeifer ([02ff5e3])
+
+### Removed
+* version now tracked through git tags not `version.py` by @jkeifer ([#31][i31])
+
+
 ## [v0.5.1] - 2021-10-01
 
 ### Changed
@@ -146,7 +196,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Initial Release
 
-[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.5.0...main
+[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.0...main
+[v0.6.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.5.1...v0.6.0
+[v0.5.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.6...v0.5.0
 [v0.4.6]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.5...v0.4.6
 [v0.4.5]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.4...v0.4.5
@@ -165,3 +217,13 @@ Initial Release
 [v0.1.2]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.1...v0.1.2
 [v0.1.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/cirrus-geo/cirrus-lib.git@0.1.0
+
+[i30]: https://github.com/cirrus-geo/cirrus-lib/pull/30
+[i31]: https://github.com/cirrus-geo/cirrus-lib/pull/31
+[i32]: https://github.com/cirrus-geo/cirrus-lib/pull/32
+[i33]: https://github.com/cirrus-geo/cirrus-lib/pull/33
+[i34]: https://github.com/cirrus-geo/cirrus-lib/pull/34
+
+[c919fad]: https://github.com/cirrus-geo/cirrus-lib/commit/c919fadb83bb4f5cdfd082d482e25975ce12aa2c
+[02ff5e3]: https://github.com/cirrus-geo/cirrus-lib/commit/02ff5e33412026b1fedda97727eef66715a27492
+

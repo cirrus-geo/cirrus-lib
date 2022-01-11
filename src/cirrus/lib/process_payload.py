@@ -6,6 +6,8 @@ import logging
 import os
 import re
 import uuid
+import jsonpath_ng.ext as jsonpath
+
 from datetime import datetime, timezone
 from typing import Dict, Optional, List
 from copy import deepcopy
@@ -15,6 +17,7 @@ from cirrus.lib.statedb import StateDB
 from cirrus.lib.logging import get_task_logger
 from cirrus.lib.transfer import get_s3_session
 from cirrus.lib.utils import get_path, property_match
+
 
 # envvars
 PAYLOAD_BUCKET = os.getenv('CIRRUS_PAYLOAD_BUCKET', None)
@@ -125,8 +128,16 @@ class ProcessPayload(dict):
         )
         for process in next_processes:
             new = deepcopy(self)
+            del new['id']
             new['process'].pop(0)
             new['process'][0] = process
+            if 'chain_filter' in process:
+                jsonfilter = jsonpath.parse(
+                    f'$.features[?({process["chain_filter"]})]',
+                )
+                new['features'] = [
+                    match.value for match in jsonfilter.find(new)
+                ]
             yield new
 
     def update(self):

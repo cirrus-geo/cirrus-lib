@@ -5,6 +5,8 @@ import pytest
 from pathlib import Path
 
 from cirrus.lib.process_payload import ProcessPayload
+from cirrus.lib.utils import recursive_compare
+
 
 fixtures = Path(__file__).parent.joinpath('fixtures')
 
@@ -22,6 +24,16 @@ def base_payload():
 @pytest.fixture()
 def sqs_event():
     return read_json_fixture('sqs-event.json')
+
+
+@pytest.fixture()
+def chain_payload():
+    return read_json_fixture('chain-payload.json')
+
+
+@pytest.fixture()
+def chain_filter_result():
+    return read_json_fixture('chain-filter-result.json')
 
 
 def test_open_payload(base_payload):
@@ -139,3 +151,13 @@ def test_next_payloads_list_of_four_fork(base_payload):
     assert len(payloads) == 2
     assert payloads[0]['process'] == [base_payload['process']] * (length-1)
     assert payloads[1]['process'] == [base_payload['process']] * (length-1)
+
+
+def test_next_payloads_chain_filter(chain_payload, chain_filter_result):
+    payloads = list(
+        ProcessPayload(chain_payload, update=True).next_payloads()
+    )
+    assert len(payloads) == 1
+    print(json.dumps(payloads, indent=4))
+    assert not recursive_compare(payloads[0], chain_payload)
+    assert recursive_compare(payloads[0], chain_filter_result)

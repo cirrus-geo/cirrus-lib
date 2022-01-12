@@ -27,13 +27,35 @@ def sqs_event():
 
 
 @pytest.fixture()
-def chain_payload():
-    return read_json_fixture('chain-payload.json')
+def chain_payload(base_payload):
+    # need to convert process and add filter
+    base_payload['process'] = [base_payload['process']] * 2
+    base_payload['process'][1]['chain_filter'] = \
+        "@.id =~ 'fake*' & @.properties.gsd <= 0"
+
+    # then add "fake" items
+    new_item_count = 3
+    features = base_payload['features']
+    features[0]['properties']['gsd'] = new_item_count
+    for index in range(1, new_item_count+1):
+        feature = copy.deepcopy(features[0])
+        feature['id'] = f'fake_id{index}'
+        # we decrement the gsd value so our search will
+        # return only the last feature per the a gsd of 0
+        feature['properties']['gsd'] = new_item_count - index
+        features.append(feature)
+
+    return base_payload
 
 
 @pytest.fixture()
-def chain_filter_result():
-    return read_json_fixture('chain-filter-result.json')
+def chain_filter_payload(chain_payload):
+    # should only have the last feature and second process def
+    chain_filter_result = copy.deepcopy(chain_payload)
+    chain_filter_result['features'] = [chain_payload['features'][-1]]
+    chain_filter_result['process'].pop(0)
+    del chain_filter_result['id']
+    return chain_filter_result
 
 
 def test_open_payload(base_payload):
@@ -153,11 +175,10 @@ def test_next_payloads_list_of_four_fork(base_payload):
     assert payloads[1]['process'] == [base_payload['process']] * (length-1)
 
 
-def test_next_payloads_chain_filter(chain_payload, chain_filter_result):
+def test_next_payloads_chain_filter(chain_payload, chain_filter_payload):
     payloads = list(
         ProcessPayload(chain_payload, update=True).next_payloads()
     )
     assert len(payloads) == 1
-    print(json.dumps(payloads, indent=4))
     assert not recursive_compare(payloads[0], chain_payload)
-    assert recursive_compare(payloads[0], chain_filter_result)
+    assert recursive_compare(payloads[0], chain_filter_payload)

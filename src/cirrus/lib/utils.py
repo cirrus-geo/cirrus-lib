@@ -13,7 +13,13 @@ from collections.abc import Mapping
 
 logger = logging.getLogger(__name__)
 
-batch_client = boto3.client('batch')
+batch_client = None
+
+def get_batch_client():
+    global batch_client
+    if batch_client is None:
+        batch_client = boto3.client('batch')
+    return batch_client
 
 
 def submit_batch_job(payload, arn, queue='basic-ondemand', definition='geolambda-as-batch', name=None):
@@ -41,7 +47,7 @@ def submit_batch_job(payload, arn, queue='basic-ondemand', definition='geolambda
         }
     }
     logger.debug(f"Submitted batch job with payload {url}")
-    response = batch_client.submit_job(**kwargs)
+    response = get_batch_client().submit_job(**kwargs)
     logger.debug(f"Batch response: {response}")
 
 

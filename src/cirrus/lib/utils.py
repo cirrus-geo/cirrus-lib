@@ -13,7 +13,13 @@ from collections.abc import Mapping
 
 logger = logging.getLogger(__name__)
 
-batch_client = boto3.client('batch')
+batch_client = None
+
+def get_batch_client():
+    global batch_client
+    if batch_client is None:
+        batch_client = boto3.client('batch')
+    return batch_client
 
 
 def submit_batch_job(payload, arn, queue='basic-ondemand', definition='geolambda-as-batch', name=None):
@@ -41,7 +47,7 @@ def submit_batch_job(payload, arn, queue='basic-ondemand', definition='geolambda
         }
     }
     logger.debug(f"Submitted batch job with payload {url}")
-    response = batch_client.submit_job(**kwargs)
+    response = get_batch_client().submit_job(**kwargs)
     logger.debug(f"Batch response: {response}")
 
 
@@ -114,3 +120,47 @@ def dict_merge(dct, merge_dct, add_keys=True):
             dct[k] = merge_dct[k]
 
     return dct
+
+
+def recursive_compare(d1, d2, level='root', print=print):
+    same = True
+    if isinstance(d1, dict) and isinstance(d2, dict):
+        if d1.keys() != d2.keys():
+            same = False
+            s1 = set(d1.keys())
+            s2 = set(d2.keys())
+            print(f'{level:<20} + {s1-s2} - {s2-s1}')
+            common_keys = s1 & s2
+        else:
+            common_keys = set(d1.keys())
+
+        for k in common_keys:
+            same = same and recursive_compare(
+                d1[k],
+                d2[k],
+                level=f'{level}.{k}',
+            )
+
+    elif isinstance(d1, list) and isinstance(d2, list):
+        if len(d1) != len(d2):
+            same = False
+            print(f'{level:<20} len1={len(d1)}; len2={len(d2)}')
+        common_len = min(len(d1), len(d2))
+
+        for i in range(common_len):
+            same = same and recursive_compare(
+                d1[i],
+                d2[i],
+                level=f'{level}[{i}]',
+            )
+
+    elif d1 != d2:
+        print(f'{level:<20} {d1} != {d2}')
+        same = False
+
+    else:
+        # base case d1 == d2
+        pass
+
+    return same
+

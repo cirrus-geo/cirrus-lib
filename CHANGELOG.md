@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+## [v0.6.1] - 2022-01-13
+
+### Added
+
+* support for item filtering when chainging workflows ([#37])
+* official support for python 3.9 and 3.10 ([#38])
+
+
 ## [v0.6.0] - 2022-01-06
 
 ### ⚠️ Breaking changes
@@ -35,25 +43,25 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 * env var `BASE_WORKFLOW_ARN` renamed `CIRRUS_BASE_WORKFLOW_ARN`
 
 ### Added
-* readme badges by @jkeifer ([#33][i33])
-* support for workflow chaining by @jkeifer ([#32][i32])
+* readme badges by @jkeifer ([#33]])
+* support for workflow chaining by @jkeifer ([#32]])
 
 ### Changed
 * move code under `/src` and change to `cirrus` namespace package
-  by @jkeifer ([#31][i31])
+  by @jkeifer ([#31]])
 * `Catalog` renamed to `ProcessPayload` and all references to `catalog`
-  changed to `payload` by @jkeifer ([#34][i34])
+  changed to `payload` by @jkeifer ([#34]])
 * tests default to `us-west-2` region if not otherwise set in env vars
   by @jkeifer ([c919fad])
 
 ### Fixed
-* exception traceback logging now shows stacktrace @jkeifer ([#30][i30])
-* codecov reporting now works by @jkeifer ([#33][i33])
+* exception traceback logging now shows stacktrace @jkeifer ([#30]])
+* codecov reporting now works by @jkeifer ([#33]])
 * `ProcessPayloads.process()` now returns list of processed `payload_id`s
   by @jkeifer ([02ff5e3])
 
 ### Removed
-* version now tracked through git tags not `version.py` by @jkeifer ([#31][i31])
+* version now tracked through git tags not `version.py` by @jkeifer ([#31]])
 
 
 ## [v0.5.1] - 2021-10-01
@@ -196,7 +204,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Initial Release
 
-[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.0...main
+[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.1...main
+[v0.6.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.5.1...v0.6.0
 [v0.5.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.4.6...v0.5.0
@@ -218,11 +227,13 @@ Initial Release
 [v0.1.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.1.0...v0.1.1
 [v0.1.0]: https://github.com/cirrus-geo/cirrus-lib.git@0.1.0
 
-[i30]: https://github.com/cirrus-geo/cirrus-lib/pull/30
-[i31]: https://github.com/cirrus-geo/cirrus-lib/pull/31
-[i32]: https://github.com/cirrus-geo/cirrus-lib/pull/32
-[i33]: https://github.com/cirrus-geo/cirrus-lib/pull/33
-[i34]: https://github.com/cirrus-geo/cirrus-lib/pull/34
+[#30]: https://github.com/cirrus-geo/cirrus-lib/pull/30
+[#31]: https://github.com/cirrus-geo/cirrus-lib/pull/31
+[#32]: https://github.com/cirrus-geo/cirrus-lib/pull/32
+[#33]: https://github.com/cirrus-geo/cirrus-lib/pull/33
+[#34]: https://github.com/cirrus-geo/cirrus-lib/pull/34
+[#37]: https://github.com/cirrus-geo/cirrus-lib/pull/37
+[#38]: https://github.com/cirrus-geo/cirrus-lib/pull/38
 
 [c919fad]: https://github.com/cirrus-geo/cirrus-lib/commit/c919fadb83bb4f5cdfd082d482e25975ce12aa2c
 [02ff5e3]: https://github.com/cirrus-geo/cirrus-lib/commit/02ff5e33412026b1fedda97727eef66715a27492

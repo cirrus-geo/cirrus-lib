@@ -494,12 +494,14 @@ class ProcessPayloads(object):
             #if state in ['QUEUED', 'PROCESSING']:
             #    logger.info(f"Skipping {payload['id']}, in {state} state")
             #    continue
-            if state in ['FAILED', ''] or _replace:
+            if payload['id'] in payload_ids:
+                logger.warning(f"Dropping duplicated payload {payload['id']}")
+            elif state in ['FAILED', ''] or _replace:
                 payload_id = payload()
                 if payload_id is not None:
                     payload_ids.append(payload_id)
             else:
-                logger.info(f"Skipping, input already in {state} state")
+                logger.info(f"Skipping {payload['id']}, input already in {state} state")
                 continue
 
         return payload_ids

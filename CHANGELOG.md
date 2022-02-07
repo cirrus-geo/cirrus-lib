@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+
+## [v0.6.2] - 2022-02-07
+
+### Fixed
+
+* Issues when payloads are duplicated ([#41])
+
 ## [v0.6.1] - 2022-01-13
 
 ### Added
@@ -204,7 +211,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Initial Release
 
-[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.1...main
+[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.2...main
+[v0.6.2]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.1...v0.6.2
 [v0.6.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.0...v0.6.1
 [v0.6.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.5.1...v0.6.0
 [v0.5.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.5.0...v0.5.1
@@ -234,6 +242,7 @@ Initial Release
 [#34]: https://github.com/cirrus-geo/cirrus-lib/pull/34
 [#37]: https://github.com/cirrus-geo/cirrus-lib/pull/37
 [#38]: https://github.com/cirrus-geo/cirrus-lib/pull/38
+[#41]: https://github.com/cirrus-geo/cirrus-lib/pull/41
 
 [c919fad]: https://github.com/cirrus-geo/cirrus-lib/commit/c919fadb83bb4f5cdfd082d482e25975ce12aa2c
 [02ff5e3]: https://github.com/cirrus-geo/cirrus-lib/commit/02ff5e33412026b1fedda97727eef66715a27492

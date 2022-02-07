@@ -139,6 +139,13 @@ class TestDbItems(unittest.TestCase):
         for dbitem in dbitems:
             assert(self.statedb.key_to_payload_id(dbitem) in ids)
 
+    def test_get_dbitems_duplicates(self):
+        ids = [test_item['id'] + str(i) for i in range(10)]
+        ids.append(ids[0])
+        dbitems = self.statedb.get_dbitems(ids)
+        for dbitem in dbitems:
+            assert(self.statedb.key_to_payload_id(dbitem) in ids)
+
     def test_get_dbitems_noitems(self):
         #with self.assertRaises(Exception):
         dbitems = self.statedb.get_dbitems([test_item['id']])

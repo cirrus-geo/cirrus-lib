@@ -77,7 +77,7 @@ class StateDB:
         try:
             resp = self.db.meta.client.batch_get_item(RequestItems={
                 self.table_name: {
-                    'Keys': [self.payload_id_to_key(id) for id in payload_ids]
+                    'Keys': [self.payload_id_to_key(id) for id in set(payload_ids)]
                 }
             })
             items = []

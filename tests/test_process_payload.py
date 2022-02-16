@@ -22,6 +22,11 @@ def base_payload():
 
 
 @pytest.fixture()
+def capella_payload():
+    return read_json_fixture('capella-fixture-2.json')
+
+
+@pytest.fixture()
 def sqs_event():
     return read_json_fixture('sqs-event.json')
 

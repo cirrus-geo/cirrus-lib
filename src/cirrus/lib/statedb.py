@@ -1,9 +1,7 @@
 import boto3
-import json
 import logging
 import os
 
-from boto3utils import s3
 from boto3.dynamodb.conditions import Key
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, List
@@ -11,7 +9,11 @@ from typing import Dict, Optional, List
 # envvars
 PAYLOAD_BUCKET = os.getenv('CIRRUS_PAYLOAD_BUCKET')
 
-STATES = ['PROCESSING', 'COMPLETED', 'FAILED', 'INVALID', 'ABORTED']
+SUCCESS_STATES = ['COMPLETED']
+FAILED_STATES = ['FAILED', 'INVALID', 'ABORTED']
+IN_PROGRESS_STATES = ['PROCESSING']
+FINAL_STATES = SUCCESS_STATES + FAILED_STATES
+STATES = IN_PROGRESS_STATES + FINAL_STATES
 
 # logging
 logger = logging.getLogger(__name__)
@@ -85,8 +87,8 @@ class StateDB:
                 items.append(r)
             logger.debug(f"Fetched {len(items)} items")
             return items
-        except Exception as err:
-            msg = f"Error fetching items"
+        except Exception:
+            msg = "Error fetching items"
             logger.error(msg, exc_info=True)
             raise Exception(msg)
 

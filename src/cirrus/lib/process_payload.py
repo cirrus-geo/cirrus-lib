@@ -6,14 +6,16 @@ import logging
 import os
 import re
 import uuid
+import hashlib
 import jsonpath_ng.ext as jsonpath
 
 from datetime import datetime, timezone
-from typing import Dict, Optional, List
+from typing import Dict, List
 from copy import deepcopy
 
 from boto3utils import s3
 from cirrus.lib.statedb import StateDB
+from cirrus.lib.callbackdb import CallbackDB
 from cirrus.lib.logging import get_task_logger
 from cirrus.lib.transfer import get_s3_session
 from cirrus.lib.utils import get_path, property_match
@@ -25,6 +27,7 @@ PUBLISH_TOPIC_ARN = os.getenv('CIRRUS_PUBLISH_TOPIC_ARN', None)
 
 # clients
 statedb = StateDB()
+callbackdb = CallbackDB()
 snsclient = boto3.client('sns')
 stepfunctions = boto3.client('stepfunctions')
 
@@ -84,6 +87,34 @@ class ProcessPayload(dict):
         self.assign_collections()
 
         self.state_item = state_item
+
+        self._collections_items = None
+        self._hashes = None
+
+    def collections_items(self):
+        if self._collections_items is None:
+            self._collections_items = [
+                f"{item['collection']}/{item['id']}" for item in self['features']
+            ]
+        return self._collections_items
+
+    def _hash(self):
+        colls_sha = hashlib.sha256()
+        items_sha = hashlib.sha256()
+        for item in self['features']:
+            colls_sha.update(item['collection'].encode())
+            items_sha.update(item['id'].encode())
+        self._hashes = (colls_sha.hexdigest(), items_sha.hexdigest())
+
+    def collections_hash(self):
+        if self._hashes is None:
+            self._hash()
+        return self._hashes[0]
+
+    def items_hash(self):
+        if self._hashes is None:
+            self._hash()
+        return self._hashes[1]
 
     @classmethod
     def from_event(cls, event: Dict, **kwargs) -> ProcessPayload:
@@ -354,7 +385,28 @@ class ProcessPayload(dict):
             self.logger.debug(f"Published item to {topic_arn}")
         return responses
 
-    def __call__(self) -> str:
+    def create_callbacks(self, state, callback_tokens=None):
+        if callback_tokens is None:
+            callback_tokens = []
+
+        if 'callback_token' in self.process and self.process['callback_token'] not in callback_tokens:
+            callback_tokens.append(self.process['callback_token'])
+
+        if not callback_tokens:
+            return
+
+        callbackdb.create_callbacks(
+            callback_tokens,
+            callbackdb.payload_to_key(self),
+            self.collections_items(),
+            state,
+        )
+
+    def set_callbacks_final_state(self, state):
+        tokens = callbackdb.get_payload_callback_tokens(callbackdb.payload_to_key(self))
+        callbackdb.set_final_state_multiple(tokens, state)
+
+    def __call__(self, callback_tokens=None) -> str:
         """Add this ProcessPayload to Cirrus and start workflow
 
         Returns:
@@ -362,6 +414,7 @@ class ProcessPayload(dict):
         """
         assert(PAYLOAD_BUCKET)
 
+        rtn = self['id']
         arn = os.getenv('CIRRUS_BASE_WORKFLOW_ARN') + self.process['workflow']
 
         # start workflow
@@ -371,24 +424,27 @@ class ProcessPayload(dict):
             s3().upload_json(self, url)
 
             # create DynamoDB record - this overwrites existing states other than PROCESSING
-            resp = statedb.claim_processing(self['id'])
+            statedb.claim_processing(self['id'])
 
             # invoke step function
             self.logger.debug(f"Running Step Function {arn}")
             exe_response = stepfunctions.start_execution(stateMachineArn=arn, input=json.dumps(self.get_payload()))
 
             # add execution to DynamoDB record
-            resp = statedb.set_processing(self['id'], exe_response['executionArn'])
+            statedb.set_processing(self['id'], exe_response['executionArn'])
 
-            return self['id']
         except statedb.db.meta.client.exceptions.ConditionalCheckFailedException:
             self.logger.warning('Already in PROCESSING state')
-            return None
+            rtn = None
         except Exception as err:
             msg = f"failed starting workflow ({err})"
             self.logger.exception(msg)
             statedb.set_failed(self['id'], msg)
+            self.create_callbacks('FAILED', callback_tokens=callback_tokens)
             raise
+
+        self.create_callbacks('PROCESSING', callback_tokens=callback_tokens)
+        return rtn
 
 
 class ProcessPayloads(object):
@@ -484,24 +540,72 @@ class ProcessPayloads(object):
         """Create Item in Cirrus State DB for each ProcessPayload and add to processing queue
         """
         payload_ids = []
-        # check existing states
+
         states = self.get_states()
+
+        # in the case of duplicate payloads, we group by ID
+        # and we pull out some key attributes
+        payloads = {}
         for payload in self.payloads:
-            _replace = replace or payload.process.get('replace', False)
-            # check existing state for Item, if any
-            state = states.get(payload['id'], '')
-            # don't try and process these - if they are stuck they should be removed from db
-            #if state in ['QUEUED', 'PROCESSING']:
-            #    logger.info(f"Skipping {payload['id']}, in {state} state")
-            #    continue
-            if payload['id'] in payload_ids:
-                logger.warning(f"Dropping duplicated payload {payload['id']}")
-            elif state in ['FAILED', 'ABORTED', ''] or _replace:
-                payload_id = payload()
-                if payload_id is not None:
-                    payload_ids.append(payload_id)
+            try:
+                _payload = payloads['id']
+            except KeyError:
+                _payload = payloads['id'] = {
+                    'payloads': [],
+                    'callback_tokens': [],
+                    'first_replace_payload_index': None,
+                }
+
+            # add the payload to the list of payloads
+            _payload['payloads'].append(payload)
+
+            # add a callback token, if any, to the list of callback tokens
+            if 'callback_token' in payload.process:
+                _payload['callback_tokens'].append(payload.process['callback_token'])
+
+            # if we don't have a replace payload yet and this one has
+            # replace set to True or the override is set to True, then
+            # use this payload as a replace payload, if we need it
+            if (
+                _payload['first_replace_payload_index'] is None
+                and payload.process.get('replace', replace)
+            ):
+                _payload['first_replace_payload_index'] = len(_payload['payloads']) - 1
+
+        # now we try to process each unique payload ID
+        for payload_id, payload_attrs in payloads.items():
+            payload_list = payload_attrs['payloads']
+            callback_tokens = payload_attrs['callback_tokens']
+
+            state = states.get(payload_id, '')
+
+            # We use the first runnable payload in the payload list,
+            # which is the index 0 if unprocessed or in a retry-able
+            # state. Otherwise we use the first_replace_payload_index,
+            # or we skip them all.
+            if state in ['FAILED', 'ABORTED', '']:
+                payload = payload_list[0]
+            elif payload_attrs['first_replace_payload_index']:
+                payload = payload_list[payload_attrs['first_replace_payload_index']]
             else:
-                logger.info(f"Skipping {payload['id']}, input already in {state} state")
+                logger.info(
+                    "Skipping %s occurrences of '%s': already in '%s' state",
+                    len(payload_list),
+                    payload_id,
+                    state
+                )
+                payload_list[0].create_callbacks(state, callback_tokens=callback_tokens)
                 continue
+
+            if len(payload_list) > 1:
+                logger.warning(
+                    "Dropping %s duplicates of payload '%s'",
+                    len(payload_list)-1,
+                    payload_id,
+                )
+
+            payload_id = payload(callback_tokens=payload_attrs['callback_tokens'])
+            if payload_id is not None:
+                payload_ids.append(payload_id)
 
         return payload_ids

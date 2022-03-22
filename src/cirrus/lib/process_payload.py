@@ -456,7 +456,7 @@ class ProcessPayloads(object):
 
         Args:
             collections (str): String of collections (input or output depending on `index`)
-            state (str): The state (QUEUED, PROCESSING, COMPLETED, FAILED, INVALID) of StateDB Items to get
+            state (str): The state (QUEUED, PROCESSING, COMPLETED, FAILED, INVALID, ABORTED) of StateDB Items to get
             since (str, optional): Get Items since this duration ago (e.g., 10m, 8h, 1w). Defaults to None.
             index (str, optional): 'input_state' or 'output_state' Defaults to 'input_state'.
             limit ([type], optional): Max number of Items to return. Defaults to None.
@@ -496,7 +496,7 @@ class ProcessPayloads(object):
             #    continue
             if payload['id'] in payload_ids:
                 logger.warning(f"Dropping duplicated payload {payload['id']}")
-            elif state in ['FAILED', ''] or _replace:
+            elif state in ['FAILED', 'ABORTED', ''] or _replace:
                 payload_id = payload()
                 if payload_id is not None:
                     payload_ids.append(payload_id)

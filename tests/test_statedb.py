@@ -33,6 +33,7 @@ test_item = {
     }
 }
 
+
 @mock_dynamodb2
 def setup_table():
     boto3.setup_default_session()
@@ -44,188 +45,233 @@ def setup_table():
     return StateDB(table_name)
 
 
-class TestClassMethods(unittest.TestCase):
-
-    testkey = {
-        'collections_workflow': 'col1_wf1',
-        'itemids': 'item1/item2'
-    }
-
-    def test_payload_id_to_key(self):
-        key = StateDB.payload_id_to_key(test_item['id'])
-        assert(key['collections_workflow'] == "col1_wf1")
-        assert(key['itemids'] == 'item1/item2')
-
-    def test_key_to_payload_id(self):
-        payload_id = StateDB.key_to_payload_id(self.testkey)
-        assert(payload_id == test_item['id'])
-
-    def test_get_input_payload_url(self):
-        url = StateDB.get_input_payload_url(self.testkey)
-        assert(f"{test_item['id']}/input.json" in url)
-
-    def test_dbitem_to_item(self):
-        item = StateDB.dbitem_to_item(test_dbitem)
-        assert(item['payload_id'] == test_item['id'])
-        assert(item['workflow'] == 'wf1')
-        assert(item['state'] == 'QUEUED')
-
-    def test_since_to_timedelta(self):
-        td = StateDB.since_to_timedelta('1d')
-        assert(td.days == 1)
-        td = StateDB.since_to_timedelta('1h')
-        assert(td.seconds == 3600)
-        td = StateDB.since_to_timedelta('10m')
-        assert(td.seconds == 600)
+TESTKEY = {
+    'collections_workflow': 'col1_wf1',
+    'itemids': 'item1/item2'
+}
 
 
-class TestDbItems(unittest.TestCase):
-
-    nitems = 1000
-
-    @classmethod
-    def setUpClass(cls):
-        cls.mock = mock_dynamodb2()
-        cls.mock.start()
-        cls.statedb = setup_table()
-        for i in range(cls.nitems):
-            newitem = deepcopy(test_item)
-            cls.statedb.set_processing(newitem['id'] + str(i), execution='arn::test')
-        cls.statedb.set_processing(test_item['id'] + '_processing', execution='arn::test')
-        cls.statedb.set_completed(test_item['id'] + '_completed', outputs=['item1', 'item2'])
-        cls.statedb.set_failed(test_item['id'] + '_failed', 'failed')
-        cls.statedb.set_invalid(test_item['id'] + '_invalid', 'invalid')
+def test_payload_id_to_key():
+    key = StateDB.payload_id_to_key(test_item['id'])
+    assert(key['collections_workflow'] == "col1_wf1")
+    assert(key['itemids'] == 'item1/item2')
 
 
-    @classmethod
-    def tearDownClass(cls):
-        for i in range(cls.nitems):
-            cls.statedb.delete_item(test_item['id'] + str(i))
-        for s in STATES:
-            cls.statedb.delete_item(test_item['id'] + f"_{s.lower()}")
-        cls.statedb.delete()
-        cls.mock.stop()
-
-    def test_set_processing(self):
-        resp = self.statedb.set_processing(test_item['id'], execution='arn::test1')
-        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(StateDB.key_to_payload_id(dbitem) == test_item['id'])
-        assert(dbitem['executions'] == ['arn::test1'])
-
-        # check that processing adds new execution to list
-        resp = self.statedb.set_processing(test_item['id'], execution='arn::test2')
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(len(dbitem['executions']) == 2)
-        assert(dbitem['executions'][-1] == 'arn::test2')
-        self.statedb.delete_item(test_item['id'])
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem is None)
-
-    def test_get_dbitem(self):
-        dbitem = self.statedb.get_dbitem(test_item['id'] + '0')
-        assert(dbitem['itemids'] == test_dbitem['itemids'] + '0')
-        assert(dbitem['collections_workflow'] == test_dbitem['collections_workflow'])
-        assert(dbitem['state_updated'].startswith('PROCESSING'))
-
-    def test_get_dbitem_noitem(self):
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem is None)
-
-    def test_get_dbitems(self):
-        ids = [test_item['id'] + str(i) for i in range(10)]
-        dbitems = self.statedb.get_dbitems(ids)
-        assert(len(dbitems) == len(ids))
-        for dbitem in dbitems:
-            assert(self.statedb.key_to_payload_id(dbitem) in ids)
-
-    def test_get_dbitems_duplicates(self):
-        ids = [test_item['id'] + str(i) for i in range(10)]
-        ids.append(ids[0])
-        dbitems = self.statedb.get_dbitems(ids)
-        for dbitem in dbitems:
-            assert(self.statedb.key_to_payload_id(dbitem) in ids)
-
-    def test_get_dbitems_noitems(self):
-        #with self.assertRaises(Exception):
-        dbitems = self.statedb.get_dbitems([test_item['id']])
-        assert(len(dbitems) == 0)
-
-    def test_get_items(self):
-        items = self.statedb.get_items(test_dbitem['collections_workflow'], state='PROCESSING', since='1h')
-        assert(len(items) == self.nitems + 1)
-        items = self.statedb.get_items(test_dbitem['collections_workflow'], state='PROCESSING', since='1h', limit=1)
-        assert(len(items) == 1)
-
-    def test_get_state(self):
-        for s in STATES:
-            state = self.statedb.get_state(test_item['id'] + f"_{s.lower()}")
-            assert(state == s)
-        state = self.statedb.get_state(test_item['id'] + 'nosuchitem')
-
-    def test_get_states(self):
-        ids = [test_item['id'] + f"_{s.lower()}" for s in STATES]
-        states = self.statedb.get_states(ids)
-        assert(len(ids) == len(states))
-        for i, id in enumerate(ids):
-            assert(states[id] == STATES[i])
-
-    def test_set_processing(self):
-        resp = self.statedb.set_processing(test_item['id'], execution='testarn')
-        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['state_updated'].startswith('PROCESSING'))
-        assert(dbitem['executions'] == ['testarn'])
-
-    def test_set_outputs(self):
-        resp = self.statedb.set_completed(test_item['id'], outputs=['output-item'])
-        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['outputs'][0] == 'output-item')
-
-    def test_set_completed(self):
-        resp = self.statedb.set_completed(test_item['id'])
-        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['state_updated'].startswith('COMPLETED'))
-
-    def test_set_failed(self):
-        resp = self.statedb.set_failed(test_item['id'], msg='test failure')
-        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['state_updated'].startswith('FAILED'))
-        assert(dbitem['last_error'] == 'test failure')
-
-    def test_set_completed_with_outputs(self):
-        resp = self.statedb.set_completed(test_item['id'], outputs=['output-item2'])
-        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['state_updated'].startswith('COMPLETED'))
-        assert(dbitem['outputs'][0] == 'output-item2')
-
-    def test_set_invalid(self):
-        resp = self.statedb.set_invalid(test_item['id'], msg='test failure')
-        assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
-        dbitem = self.statedb.get_dbitem(test_item['id'])
-        assert(dbitem['state_updated'].startswith('INVALID'))
-        assert(dbitem['last_error'] == 'test failure')
-
-    def test_get_counts(self):
-        count = self.statedb.get_counts(test_dbitem['collections_workflow'])
-        assert(count == self.nitems + 4)
-        for s in STATES:
-            count = self.statedb.get_counts(test_dbitem['collections_workflow'], state=s)
-            if s == 'PROCESSING':
-                assert(count == self.nitems + 1)
-            else:
-                assert(count == 1)
-        count = self.statedb.get_counts(test_dbitem['collections_workflow'], since='1h')
+def test_key_to_payload_id():
+    payload_id = StateDB.key_to_payload_id(TESTKEY)
+    assert(payload_id == test_item['id'])
 
 
-    def _test_get_counts_paging(self):
-        for i in range(5000):
-            self.statedb.set_processing(test_item['id'] + f"_{i}", execution='arn::test')
-        count = self.statedb.get_counts(test_dbitem['collections_workflow'])
-        assert(count == 1004)
-        for i in range(5000):
-            self.statedb.delete_item(test_item['id'] + f"_{i}")
+def test_get_input_payload_url():
+    url = StateDB.get_input_payload_url(TESTKEY)
+    assert(f"{test_item['id']}/input.json" in url)
+
+
+def test_dbitem_to_item():
+    item = StateDB.dbitem_to_item(test_dbitem)
+    assert(item['payload_id'] == test_item['id'])
+    assert(item['workflow'] == 'wf1')
+    assert(item['state'] == 'QUEUED')
+
+
+def test_since_to_timedelta():
+    td = StateDB.since_to_timedelta('1d')
+    assert(td.days == 1)
+    td = StateDB.since_to_timedelta('1h')
+    assert(td.seconds == 3600)
+    td = StateDB.since_to_timedelta('10m')
+    assert(td.seconds == 600)
+
+
+NITEMS = 1000
+
+
+@pytest.fixture(scope='session')
+def state_table():
+    mock = mock_dynamodb2()
+    mock.start()
+    statedb = setup_table()
+    for i in range(NITEMS):
+        newitem = deepcopy(test_item)
+        statedb.set_processing(
+            f'{newitem["id"]}{i}',
+            execution='arn::test',
+        )
+    statedb.set_processing(
+        f'{test_item["id"]}_processing',
+        execution='arn::test',
+    )
+    statedb.set_completed(
+        f'{test_item["id"]}_completed',
+        outputs=['item1', 'item2'],
+    )
+    statedb.set_failed(
+        f'{test_item["id"]}_failed',
+        'failed',
+    )
+    statedb.set_invalid(
+        f'{test_item["id"]}_invalid',
+        'invalid',
+    )
+    statedb.set_aborted(
+        f'{test_item["id"]}_aborted',
+    )
+    yield statedb
+    for i in range(NITEMS):
+        statedb.delete_item(f'{test_item["id"]}{i}')
+    for s in STATES:
+        statedb.delete_item(f'{test_item["id"]}_{s.lower()}')
+    statedb.delete()
+    mock.stop()
+
+
+def test_get_items(state_table):
+    items = state_table.get_items(
+        test_dbitem['collections_workflow'],
+        state='PROCESSING',
+        since='1h',
+    )
+    assert(len(items) == NITEMS + 1)
+    items = state_table.get_items(
+        test_dbitem['collections_workflow'],
+        state='PROCESSING',
+        since='1h',
+        limit=1,
+    )
+    assert(len(items) == 1)
+
+
+def test_get_dbitem(state_table):
+    dbitem = state_table.get_dbitem(test_item['id'] + '0')
+    assert(dbitem['itemids'] == test_dbitem['itemids'] + '0')
+    assert(dbitem['collections_workflow'] == test_dbitem['collections_workflow'])
+    assert(dbitem['state_updated'].startswith('PROCESSING'))
+
+
+def test_get_dbitem_noitem(state_table):
+    dbitem = state_table.get_dbitem('no-collection/workflow-none/fake-id')
+    assert(dbitem is None)
+
+
+def test_get_dbitems(state_table):
+    ids = [test_item['id'] + str(i) for i in range(10)]
+    dbitems = state_table.get_dbitems(ids)
+    assert(len(dbitems) == len(ids))
+    for dbitem in dbitems:
+        assert(state_table.key_to_payload_id(dbitem) in ids)
+
+
+def test_get_dbitems_duplicates(state_table):
+    ids = [test_item['id'] + str(i) for i in range(10)]
+    ids.append(ids[0])
+    dbitems = state_table.get_dbitems(ids)
+    for dbitem in dbitems:
+        assert(state_table.key_to_payload_id(dbitem) in ids)
+
+
+def test_get_dbitems_noitems(state_table):
+    dbitems = state_table.get_dbitems(['no-collection/workflow-none/fake-id'])
+    assert(len(dbitems) == 0)
+
+
+def test_get_state(state_table):
+    for s in STATES:
+        state = state_table.get_state(test_item['id'] + f"_{s.lower()}")
+        assert(state == s)
+    state = state_table.get_state(test_item['id'] + 'nosuchitem')
+
+
+def test_get_states(state_table):
+    ids = [test_item['id'] + f"_{s.lower()}" for s in STATES]
+    states = state_table.get_states(ids)
+    assert(len(ids) == len(states))
+    for i, id in enumerate(ids):
+        assert(states[id] == STATES[i])
+
+
+def test_get_counts(state_table):
+    count = state_table.get_counts(test_dbitem['collections_workflow'])
+    assert(count == NITEMS + len(STATES))
+    for s in STATES:
+        count = state_table.get_counts(test_dbitem['collections_workflow'], state=s)
+        if s == 'PROCESSING':
+            assert(count == NITEMS + 1)
+        else:
+            assert(count == 1)
+    count = state_table.get_counts(test_dbitem['collections_workflow'], since='1h')
+
+
+def test_set_processing(state_table):
+    resp = state_table.set_processing(test_item['id'], execution='arn::test1')
+    assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(StateDB.key_to_payload_id(dbitem) == test_item['id'])
+    assert(dbitem['executions'] == ['arn::test1'])
+
+
+def test_second_execution(state_table):
+    # check that processing adds new execution to list
+    resp = state_table.set_processing(test_item['id'], execution='arn::test2')
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(len(dbitem['executions']) == 2)
+    assert(dbitem['executions'][-1] == 'arn::test2')
+
+
+def test_set_outputs(state_table):
+    resp = state_table.set_completed(test_item['id'], outputs=['output-item'])
+    assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem['outputs'][0] == 'output-item')
+
+
+def test_set_completed(state_table):
+    resp = state_table.set_completed(test_item['id'])
+    assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem['state_updated'].startswith('COMPLETED'))
+
+
+def test_set_failed(state_table):
+    resp = state_table.set_failed(test_item['id'], msg='test failure')
+    assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem['state_updated'].startswith('FAILED'))
+    assert(dbitem['last_error'] == 'test failure')
+
+
+def test_set_completed_with_outputs(state_table):
+    resp = state_table.set_completed(test_item['id'], outputs=['output-item2'])
+    assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem['state_updated'].startswith('COMPLETED'))
+    assert(dbitem['outputs'][0] == 'output-item2')
+
+
+def test_set_invalid(state_table):
+    resp = state_table.set_invalid(test_item['id'], msg='test failure')
+    assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem['state_updated'].startswith('INVALID'))
+    assert(dbitem['last_error'] == 'test failure')
+
+
+def test_set_aborted(state_table):
+    resp = state_table.set_aborted(test_item['id'])
+    assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem['state_updated'].startswith('ABORTED'))
+
+
+def test_delete_item(state_table):
+    state_table.delete_item(test_item['id'])
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem is None)
+
+
+def _test_get_counts_paging(state_table):
+    for i in range(5000):
+        state_table.set_processing(test_item['id'] + f"_{i}", execution='arn::test')
+    count = state_table.get_counts(test_dbitem['collections_workflow'])
+    assert(count == 1004)
+    for i in range(5000):
+        state_table.delete_item(test_item['id'] + f"_{i}")

@@ -11,7 +11,7 @@ from typing import Dict, Optional, List
 # envvars
 PAYLOAD_BUCKET = os.getenv('CIRRUS_PAYLOAD_BUCKET')
 
-STATES = ['PROCESSING', 'COMPLETED', 'FAILED', 'INVALID']
+STATES = ['PROCESSING', 'COMPLETED', 'FAILED', 'INVALID', 'ABORTED']
 
 # logging
 logger = logging.getLogger(__name__)
@@ -123,7 +123,7 @@ class StateDB:
 
         Args:
             collections_workflow (str): /-separated list of input collections_workflow
-            state (Optional[str], optional): State of Items to get (PROCESSING, COMPLETED, FAILED, INVALID)
+            state (Optional[str], optional): State of Items to get (PROCESSING, COMPLETED, FAILED, INVALID, ABORTED)
             since (Optional[str], optional): Get Items since this amount of time in the past. Defaults to None.
             sort_ascending (Optional[bool], optional): Determines which direction the index of the results will be sorted. Defaults to False.
             sort_index (Optional[str], optional): Determines which index to use for sorting, if not applying a filter (state_updated, updated). Defaults to None.
@@ -171,7 +171,7 @@ class StateDB:
             payload_id (str): The Payload ID
 
         Returns:
-            str: Current state: PROCESSING, COMPLETED, FAILED, INVALID
+            str: Current state: PROCESSING, COMPLETED, FAILED, INVALID, ABORTED
         """
         response = self.table.get_item(Key=self.payload_id_to_key(payload_id))
         if 'Item' in response:
@@ -366,6 +366,35 @@ class StateDB:
             }
         )
         logger.debug("set invalid", extra=key.update({'last_error': msg}))
+        return response
+
+    def set_aborted(self, payload_id: str) -> str:
+        """Set this item as ABORTED
+
+        Args:
+            payload_id (str): The Cirrus Payload
+
+        Returns:
+            str: DynamoDB response
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        key = self.payload_id_to_key(payload_id)
+
+        expr = (
+            'SET '
+            'created = if_not_exists(created, :created), '
+            'state_updated=:state_updated, updated=:updated'
+        )
+        response = self.table.update_item(
+            Key=key,
+            UpdateExpression=expr,
+            ExpressionAttributeValues={
+                ':created': now,
+                ':state_updated': f"ABORTED_{now}",
+                ':updated': now,
+            }
+        )
+        logger.debug("set aborted")
         return response
 
     def query(self, collections_workflow: str, state: str=None, since: str=None,

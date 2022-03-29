@@ -41,8 +41,14 @@ class Task(ABC):
         self._local = local
 
         # create temporary work directory if workdir is None
-        self._workdir = mkdtemp() if workdir is None else workdir
-        makedirs(self._workdir, exist_ok=True)
+        self._workdir = workdir
+        if workdir is None:
+            self._workdir = mkdtemp()
+            self._tmpworkdir = True
+        else:
+            self._workdir = workdir
+            self._tmpworkdir = False
+            makedirs(self._workdir, exist_ok=True)
 
         #self.validate()
 
@@ -128,7 +134,7 @@ class Task(ABC):
             raise err
         finally:
             # remove work directory if not running locally
-            if task._local is None:
+            if task._tmpworkdir:
                 task.logger.debug('Removing work directory %s' % task._workdir)
                 rmtree(task._workdir)
         
@@ -149,6 +155,7 @@ class Task(ABC):
         parser = subparsers.add_parser('local', parents=[pparser], help=h, formatter_class=dhf)
         parser.add_argument('filename', help='Full path of payload to process')
         parser.add_argument('--workdir', help='Use this as work directory', default=None)
+        parser.add_argument('--save', help='Save output with provided filename', default=None)
 
         # Cirrus process subcommand
         h = 'Process Cirrus STAC Process Catalog'
@@ -181,13 +188,21 @@ class Task(ABC):
             logging.getLogger(ql).propagate = False
 
         if cmd == 'local':
+            save = args.pop('save')
+            # open local payload
             with open(args.pop('filename')) as f:
                 payload = json.loads(f.read())
-            return cls.handler(payload, local=True, **args)
+            # run task handler
+            output = cls.handler(payload, local=True, **args)
+            # save task output
+            if save:
+                with open(save, 'w') as f:
+                    f.write(json.dumps(output))
         if cmd == 'cirrus':
-            # fetch input catalog
+            # get remote payload
             payload = s3().read_json(args['url'])
+            # run task handler
             output = cls.handler(payload)
-            # upload return payload
+            # upload task output
             s3().upload_json(output, args["url"].replace('.json', '_out.json'))
     

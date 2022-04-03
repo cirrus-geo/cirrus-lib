@@ -188,7 +188,7 @@ class Task(ABC):
             logging.getLogger(ql).propagate = False
 
         if cmd == 'local':
-            save = args.pop('save')
+            save = args.pop('save', None)
             # open local payload
             with open(args.pop('filename')) as f:
                 payload = json.loads(f.read())

@@ -137,15 +137,14 @@ class Task(ABC):
                 task.logger.debug('Removing work directory %s' % task._workdir)
                 rmtree(task._workdir)
 
-
     @classmethod
-    def parse_args(cls, args):
+    def get_cli_parser(cls):
         """ Parse CLI arguments """
         dhf = argparse.ArgumentDefaultsHelpFormatter
         parser0 = argparse.ArgumentParser(description=cls._description)
+        parser0.add_argument('--version', help='Print version and exit', action='version', version=cls._version)
 
         pparser = argparse.ArgumentParser(add_help=False)
-        pparser.add_argument('--version', help='Print version and exit', action='version', version=cls._version)
         pparser.add_argument('--logging', default='INFO', help='DEBUG, INFO, WARN, ERROR, CRITICAL')
         subparsers = parser0.add_subparsers(dest='command')
 
@@ -160,14 +159,20 @@ class Task(ABC):
         h = 'Process Cirrus STAC Process Catalog'
         parser = subparsers.add_parser('cirrus', parents=[pparser], help=h, formatter_class=dhf)
         parser.add_argument('url', help='url (s3 or local) to Cirrus Process Payload')
+        return parser0
+
+    @classmethod
+    def parse_args(cls, args, parser=None):
+        if parser is None:
+            parser = cls.get_cli_parser()
 
         # turn Namespace into dictionary
-        pargs = vars(parser0.parse_args(args))
+        pargs = vars(parser.parse_args(args))
         # only keep keys that are not None
         pargs = {k: v for k, v in pargs.items() if v is not None}
 
         if pargs.get('command', None) is None:
-            pparser.print_help()
+            parser.print_help()
             sys.exit(0)
 
         return pargs

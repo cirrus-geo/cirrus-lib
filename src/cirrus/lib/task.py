@@ -4,17 +4,20 @@ from copy import deepcopy
 import json
 import logging
 from os import makedirs
-import os.path as op
+from pathlib import Path
 from shutil import rmtree
 import sys
 from tempfile import mkdtemp
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from boto3utils import s3
 
 from cirrus.lib.logging import get_task_logger
 from cirrus.lib.process_payload import ProcessPayload
 from cirrus.lib.transfer import download_item_assets, upload_item_assets
+
+# types
+PathLike = Union[str, Path]
 
 
 class Task(ABC):
@@ -23,7 +26,7 @@ class Task(ABC):
     _description = 'A task for doing things'
     _version = '0.1.0'
 
-    def __init__(self: "Task", payload: Dict, local: Optional[bool]=None, workdir: Optional[str]=None):
+    def __init__(self: "Task", payload: Dict, local: Optional[bool]=None, workdir: Optional[PathLike]=None):
         # parse event
         payload = ProcessPayload.from_event(payload)
 
@@ -36,21 +39,21 @@ class Task(ABC):
 
         # set up logger
         self.logger = get_task_logger(f"task.{self._name}", payload=payload)
-        
+
+        self.validate()
+
         # local mode? 
         self._local = local
 
         # create temporary work directory if workdir is None
         self._workdir = workdir
         if workdir is None:
-            self._workdir = mkdtemp()
+            self._workdir = Path(mkdtemp())
             self._tmpworkdir = True
         else:
-            self._workdir = workdir
+            self._workdir = Path(workdir)
             self._tmpworkdir = False
             makedirs(self._workdir, exist_ok=True)
-
-        #self.validate()
 
     @property
     def parameters(self):
@@ -72,7 +75,7 @@ class Task(ABC):
             assets (Optional[List[str]], optional): List of asset keys to download. Defaults to all assets.
         """
         for i, item in enumerate(self.items):
-            outdir = op.join(self._workdir, item['id'])
+            outdir = self._workdir / Path(item['id'])
             makedirs(outdir, exist_ok=True)
             self.items[i] = download_item_assets(item, path=outdir, assets=assets)
 
@@ -134,7 +137,7 @@ class Task(ABC):
         finally:
             # remove work directory if not running locally
             if task._tmpworkdir:
-                task.logger.debug('Removing work directory %s' % task._workdir)
+                task.logger.debug(f"Removing work directory {task._workdir}")
                 rmtree(task._workdir)
 
     @classmethod
@@ -152,7 +155,8 @@ class Task(ABC):
         h = 'Locally process (development)'
         parser = subparsers.add_parser('local', parents=[pparser], help=h, formatter_class=dhf)
         parser.add_argument('filename', help='Full path of payload to process')
-        parser.add_argument('--workdir', help='Use this as work directory', default=None)
+        h = 'Use this as work directory. Will be created but not deleted)'
+        parser.add_argument('--workdir', help=h, default=None, type=Path)
         parser.add_argument('--save', help='Save output with provided filename', default=None)
 
         # Cirrus process subcommand

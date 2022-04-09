@@ -76,7 +76,6 @@ class Task(ABC):
             makedirs(outdir, exist_ok=True)
             self.items[i] = download_item_assets(item, path=outdir, assets=assets)
 
-
     def upload_assets(self, assets: Optional[List[str]]=None):
         if self._local:
             self.logger.warn('Running in local mode, assets not uploaded')
@@ -137,7 +136,8 @@ class Task(ABC):
             if task._tmpworkdir:
                 task.logger.debug('Removing work directory %s' % task._workdir)
                 rmtree(task._workdir)
-        
+
+
     @classmethod
     def parse_args(cls, args):
         """ Parse CLI arguments """
@@ -146,8 +146,7 @@ class Task(ABC):
 
         pparser = argparse.ArgumentParser(add_help=False)
         pparser.add_argument('--version', help='Print version and exit', action='version', version=cls._version)
-        pparser.add_argument('--log', default=1, type=int,
-                                help='0:all, 1:debug, 2:info, 3:warning, 4:error, 5:critical')
+        pparser.add_argument('--logging', default='INFO', help='DEBUG, INFO, WARN, ERROR, CRITICAL')
         subparsers = parser0.add_subparsers(dest='command')
 
         # process subcommand
@@ -168,7 +167,7 @@ class Task(ABC):
         pargs = {k: v for k, v in pargs.items() if v is not None}
 
         if pargs.get('command', None) is None:
-            parser.print_help()
+            pparser.print_help()
             sys.exit(0)
 
         return pargs
@@ -179,9 +178,10 @@ class Task(ABC):
         cmd = args.pop('command')
 
         # logging
+        loglevel = args.pop('logging')
         logging.basicConfig(stream=sys.stdout,
                             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=args.pop('log') * 10)
+                            level=loglevel)
         # quiet these loud loggers
         quiet_loggers = ['botocore', 's3transfer', 'urllib3']
         for ql in quiet_loggers:
@@ -205,4 +205,3 @@ class Task(ABC):
             output = cls.handler(payload)
             # upload task output
             s3().upload_json(output, args["url"].replace('.json', '_out.json'))
-    

@@ -178,8 +178,8 @@ class Task(ABC):
         return pargs
 
     @classmethod
-    def cli(cls):
-        args = cls.parse_args(sys.argv[1:])
+    def cli(cls, parser=None):
+        args = cls.parse_args(sys.argv[1:], parser=parser)
         cmd = args.pop('command')
 
         # logging

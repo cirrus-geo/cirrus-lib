@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod #abstractclassmethod
 import argparse
+from collections import OrderedDict 
 from copy import deepcopy
 import json
 import logging
+from operator import getitem 
 from os import makedirs
 from pathlib import Path
 from shutil import rmtree
@@ -112,7 +114,7 @@ class Task(ABC):
         #self.download_assets(['key1', 'key2'])
         # do some stuff
         #self.upload_assets(['key1', 'key2'])
-        pass
+        return self.items
 
     @property
     def output_payload(self) -> Dict:
@@ -129,7 +131,7 @@ class Task(ABC):
     def handler(cls, payload, **kwargs):
         task = cls(payload, **kwargs)
         try:
-            task.process()
+            task.items = task.process(**task.parameters)
             return task.output_payload
         except Exception as err:
             task.logger.error(err, exc_info=True)

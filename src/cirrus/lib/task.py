@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod #abstractclassmethod
 import argparse
-from collections import OrderedDict 
+from collections import OrderedDict
+from concurrent.futures import process 
 from copy import deepcopy
 import json
 import logging
@@ -40,7 +41,7 @@ class Task(ABC):
         # The original items from the payload
         self.original_items = deepcopy(payload['features'])
 
-        self.items = payload['features']
+        self.items = self._payload['features']
 
         # set up logger
         self.logger = get_task_logger(f"task.{self._name}", payload=payload)
@@ -72,7 +73,17 @@ class Task(ABC):
         return self._payload['id']
 
     @property
-    def payload(self):
+    def output_payload(self):
+        processing_ext = 'https://stac-extensions.github.io/processing/v1.1.0/schema.json'
+        for i in self.items:
+            i['stac_extensions'].append(processing_ext)
+            i['stac_extensions'] = list(set(i['stac_extensions']))
+            i['properties']['processing:software'] = {
+                self._name: self._version
+            }
+        self._payload['features'] = self.items
+        # add provenance metadata
+
         return self._payload
 
     @property
@@ -126,7 +137,7 @@ class Task(ABC):
         return item
 
     @abstractmethod
-    def process(self) -> List[Dict]:
+    def process(self, **kwargs) -> List[Dict]:
         """Main task logic - virtual
 
         Returns:
@@ -143,7 +154,7 @@ class Task(ABC):
         task = cls(payload, **kwargs)
         try:
             task.items = task.process(**task.parameters)
-            return task._payload
+            return task.output_payload
         except Exception as err:
             task.logger.error(err, exc_info=True)
             raise err
@@ -177,7 +188,6 @@ class Task(ABC):
     def parse_args(cls, args, parser=None):
         if parser is None:
             parser = cls.get_cli_parser()
-
         # turn Namespace into dictionary
         pargs = vars(parser.parse_args(args))
         # only keep keys that are not None

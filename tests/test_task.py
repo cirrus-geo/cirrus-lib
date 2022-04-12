@@ -2,11 +2,13 @@
 import json
 from pathlib import Path
 
+import vcr
 
 from cirrus.lib.task import Task
 
 
 testpath = Path(__file__).parent
+cassettepath = testpath / 'fixtures' / 'cassettes'
 
 
 class NothingTask(Task):
@@ -109,6 +111,12 @@ def test_task_handler():
     output_payload = DerivedItemTask.handler(payload)
     derived_link = [l for l in output_payload['features'][0]['links'] if l['rel'] == 'derived_from'][0]
     assert(derived_link['href'] == self_link['href'])
+
+
+@vcr.use_cassette(str(cassettepath/'download_assets'))
+def test_download_assets():
+    t = NothingTask(get_test_payload(), workdir=testpath/'test-task-download-assets')
+    t.download_assets(['metadata'])
 
 
 if __name__ == "__main__":

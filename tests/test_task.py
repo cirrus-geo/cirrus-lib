@@ -117,6 +117,11 @@ def test_task_handler():
 def test_download_assets():
     t = NothingTask(get_test_payload(), workdir=testpath/'test-task-download-assets')
     t.download_assets(['metadata'])
+    filename = Path(t.items[0]['assets']['metadata']['href'])
+    assert(filename.is_file() == True)
+    t._tmpworkdir = True
+    del t
+    assert(filename.is_file() == False)
 
 
 if __name__ == "__main__":

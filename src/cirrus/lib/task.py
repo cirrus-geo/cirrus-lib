@@ -40,6 +40,8 @@ class Task(ABC):
         # The original items from the payload
         self.original_items = deepcopy(payload['features'])
 
+        self.items = payload['features']
+
         # set up logger
         self.logger = get_task_logger(f"task.{self._name}", payload=payload)
 
@@ -70,8 +72,8 @@ class Task(ABC):
         return self._payload['id']
 
     @property
-    def items(self) -> List[Dict]:
-        return self._payload['features']
+    def payload(self):
+        return self._payload
 
     @property
     def process_definition(self) -> Dict:
@@ -112,20 +114,20 @@ class Task(ABC):
     @classmethod
     def create_item_from_item(self, item):
         # create a derived output item
-        
-            links = [l['href'] for l in item['links'] if l['rel'] == 'self']
-            if len(links) == 1:
-                # add derived from link
-                item ['links'].append({
-                    'title': 'Source STAC Item',
-                    'rel': 'derived_from',
-                    'href': links[0],
-                    'type': 'application/json'
-                })
+        links = [l['href'] for l in item['links'] if l['rel'] == 'self']
+        if len(links) == 1:
+            # add derived from link
+            item ['links'].append({
+                'title': 'Source STAC Item',
+                'rel': 'derived_from',
+                'href': links[0],
+                'type': 'application/json'
+            })
+        return item
 
     @abstractmethod
     def process(self) -> List[Dict]:
-        """Main task logic - virtua
+        """Main task logic - virtual
 
         Returns:
             [type]: [description]
@@ -136,22 +138,12 @@ class Task(ABC):
         #self.upload_assets(['key1', 'key2'])
         return self.items
 
-    @property
-    def output_payload(self) -> Dict:
-        # assemble return payload
-        payload = self.remaining_payload
-        payload.update({
-            'features': self.items,
-            'process': self.process_definition
-        })
-        return payload
-
     @classmethod
     def handler(cls, payload, **kwargs):
         task = cls(payload, **kwargs)
         try:
             task.items = task.process(**task.parameters)
-            return task.output_payload
+            return task._payload
         except Exception as err:
             task.logger.error(err, exc_info=True)
             raise err

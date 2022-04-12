@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+* Abstract base class `Task` for creating new tasks ([#42])
+
 
 ## [v0.7.0] - 2022-02-17
 

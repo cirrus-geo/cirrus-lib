@@ -28,21 +28,23 @@ class Task(ABC):
     _description = 'A task for doing things'
     _version = '0.1.0'
 
-    def __init__(self: "Task", payload: Dict, local: Optional[bool]=None, workdir: Optional[PathLike]=None):
+    def __init__(self: "Task", payload: Dict,
+                 local: Optional[bool]=False,
+                 workdir: Optional[PathLike]=None,
+                 skip_validation: Optional[bool] = False):
         # parse event
         payload = ProcessPayload.from_event(payload)
 
-        # TODO - use PySTAC here
-        self.original_items = payload.pop('features')
-        self.items = deepcopy(self.original_items)
+        self._payload = payload
 
-        self.process_definition = payload.pop('process')
-        self.remaining_payload = dict(payload)
+        # The original items from the payload
+        self.original_items = deepcopy(payload['features'])
 
         # set up logger
         self.logger = get_task_logger(f"task.{self._name}", payload=payload)
 
-        self.validate()
+        if not skip_validation:
+            self.validate()
 
         # local mode? 
         self._local = local
@@ -57,17 +59,35 @@ class Task(ABC):
             self._tmpworkdir = False
             makedirs(self._workdir, exist_ok=True)
 
+    def __del__(self):
+        # remove work directory if not running locally
+        if self._tmpworkdir:
+            self.logger.debug(f"Removing work directory {self._workdir}")
+            rmtree(self._workdir)
+
     @property
-    def parameters(self):
+    def id(self) -> str:
+        return self._payload['id']
+
+    @property
+    def items(self) -> List[Dict]:
+        return self._payload['features']
+
+    @property
+    def process_definition(self) -> Dict:
+        return self._payload['process']
+
+    @property
+    def parameters(self) -> Dict:
         return self.process_definition['tasks'].get(self._name, {})
 
     @property
-    def output_options(self):
+    def output_options(self) -> Dict:
         return self.process_definition.get('output_options', {})
 
-    def validate(self):
+    def validate(self) -> bool:
         # put validation logic on input Items and process definition here
-        pass
+        return True
 
     def download_assets(self, assets: Optional[List[str]]=None):
         """Download provided asset keys for all items in payload. Assets are saved in workdir in a
@@ -104,7 +124,7 @@ class Task(ABC):
                 })
 
     @abstractmethod
-    def process(self):
+    def process(self) -> List[Dict]:
         """Main task logic - virtua
 
         Returns:
@@ -118,7 +138,6 @@ class Task(ABC):
 
     @property
     def output_payload(self) -> Dict:
-        
         # assemble return payload
         payload = self.remaining_payload
         payload.update({
@@ -136,11 +155,6 @@ class Task(ABC):
         except Exception as err:
             task.logger.error(err, exc_info=True)
             raise err
-        finally:
-            # remove work directory if not running locally
-            if task._tmpworkdir:
-                task.logger.debug(f"Removing work directory {task._workdir}")
-                rmtree(task._workdir)
 
     @classmethod
     def get_cli_parser(cls):

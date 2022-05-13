@@ -104,7 +104,7 @@ class Task(ABC):
 
     def download_assets(self, assets: Optional[List[str]]=None):
         """Download provided asset keys for all items in payload. Assets are saved in workdir in a
-           directory named by the Item ID
+           directory named by the Item ID, and the items are updated with the new asset hrefs.
 
         Args:
             assets (Optional[List[str]], optional): List of asset keys to download. Defaults to all assets.

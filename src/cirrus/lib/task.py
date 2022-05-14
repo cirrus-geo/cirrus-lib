@@ -36,6 +36,9 @@ class Task(ABC):
         # parse event
         payload = ProcessPayload.from_event(payload)
 
+        if not skip_validation:
+            self.validate(payload)
+
         self._payload = payload
 
         # The original items from the payload
@@ -45,9 +48,6 @@ class Task(ABC):
 
         # set up logger
         self.logger = get_task_logger(f"task.{self._name}", payload=payload)
-
-        if not skip_validation:
-            self.validate()
 
         # local mode? 
         self._local = local
@@ -98,7 +98,8 @@ class Task(ABC):
     def output_options(self) -> Dict:
         return self.process_definition.get('output_options', {})
 
-    def validate(self) -> bool:
+    @classmethod
+    def validate(cls, payload) -> bool:
         # put validation logic on input Items and process definition here
         return True
 

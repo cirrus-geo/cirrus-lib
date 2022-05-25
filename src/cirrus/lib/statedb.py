@@ -535,3 +535,4 @@ class StateDB:
         hours = int(since[0:-1]) if unit == 'h' else 0
         minutes = int(since[0:-1]) if unit == 'm' else 0
         return timedelta(days=days, hours=hours, minutes=minutes)
+        

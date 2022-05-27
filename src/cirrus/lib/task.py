@@ -1,11 +1,8 @@
-from abc import ABC, abstractmethod #abstractclassmethod
+from abc import ABC, abstractmethod
 import argparse
-from collections import OrderedDict
-from concurrent.futures import process 
 from copy import deepcopy
 import json
 import logging
-from operator import getitem 
 from os import makedirs
 from pathlib import Path
 from shutil import rmtree
@@ -25,9 +22,9 @@ PathLike = Union[str, Path]
 
 class Task(ABC):
 
-    _name = 'task'
-    _description = 'A task for doing things'
-    _version = '0.1.0'
+    name = 'task'
+    description = 'A task for doing things'
+    version = '0.1.0'
 
     def __init__(self: "Task", payload: Dict,
                  local: Optional[bool]=False,
@@ -47,7 +44,7 @@ class Task(ABC):
         self.items = self._payload['features']
 
         # set up logger
-        self.logger = get_task_logger(f"task.{self._name}", payload=payload)
+        self.logger = get_task_logger(f"task.{self.name}", payload=payload)
 
         # local mode? 
         self._local = local
@@ -79,7 +76,7 @@ class Task(ABC):
             i['stac_extensions'].append(processing_ext)
             i['stac_extensions'] = list(set(i['stac_extensions']))
             i['properties']['processing:software'] = {
-                self._name: self._version
+                self.name: self.version
             }
         self._payload['features'] = self.items
         # add provenance metadata
@@ -92,7 +89,7 @@ class Task(ABC):
 
     @property
     def parameters(self) -> Dict:
-        return self.process_definition['tasks'].get(self._name, {})
+        return self.process_definition['tasks'].get(self.name, {})
 
     @property
     def output_options(self) -> Dict:
@@ -164,8 +161,8 @@ class Task(ABC):
     def get_cli_parser(cls):
         """ Parse CLI arguments """
         dhf = argparse.ArgumentDefaultsHelpFormatter
-        parser0 = argparse.ArgumentParser(description=cls._description)
-        parser0.add_argument('--version', help='Print version and exit', action='version', version=cls._version)
+        parser0 = argparse.ArgumentParser(description=cls.description)
+        parser0.add_argument('--version', help='Print version and exit', action='version', version=cls.version)
 
         pparser = argparse.ArgumentParser(add_help=False)
         pparser.add_argument('--logging', default='INFO', help='DEBUG, INFO, WARN, ERROR, CRITICAL')

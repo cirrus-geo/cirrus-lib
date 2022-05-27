@@ -12,16 +12,16 @@ cassettepath = testpath / 'fixtures' / 'cassettes'
 
 
 class NothingTask(Task):
-    _name = 'nothing-task'
-    _description = 'this task does nothing'
+    name = 'nothing-task'
+    description = 'this task does nothing'
 
     def process(self):
         return self.items
 
 
 class DerivedItemTask(Task):
-    _name = 'derived-item-task'
-    _description = 'this task creates a dervied item'
+    name = 'derived-item-task'
+    description = 'this task creates a dervied item'
 
     def process(self):
         return [self.create_item_from_item(self.items[0])]

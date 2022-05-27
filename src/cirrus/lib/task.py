@@ -120,13 +120,13 @@ class Task(ABC):
             self.items[i] = upload_item_assets(item, **self.output_options)
 
     # this should be in PySTAC
-    @classmethod
-    def create_item_from_item(self, item):
+    @staticmethod
+    def create_item_from_item(item):
         # create a derived output item
         links = [l['href'] for l in item['links'] if l['rel'] == 'self']
         if len(links) == 1:
             # add derived from link
-            item ['links'].append({
+            item['links'].append({
                 'title': 'Source STAC Item',
                 'rel': 'derived_from',
                 'href': links[0],

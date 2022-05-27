@@ -85,7 +85,7 @@ class Task(ABC):
 
     @property
     def process_definition(self) -> Dict:
-        return self._payload['process']
+        return self._payload.process
 
     @property
     def parameters(self) -> Dict:

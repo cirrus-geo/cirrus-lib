@@ -255,8 +255,8 @@ Initial Release
 [#37]: https://github.com/cirrus-geo/cirrus-lib/pull/37
 [#38]: https://github.com/cirrus-geo/cirrus-lib/pull/38
 [#41]: https://github.com/cirrus-geo/cirrus-lib/pull/41
-
-[#44]: https://github.com/cirrus-geo/cirrus-lib/issues/41
+[#42]: https://github.com/cirrus-geo/cirrus-lib/issues/42
+[#44]: https://github.com/cirrus-geo/cirrus-lib/issues/44
 
 [c919fad]: https://github.com/cirrus-geo/cirrus-lib/commit/c919fadb83bb4f5cdfd082d482e25975ce12aa2c
 [02ff5e3]: https://github.com/cirrus-geo/cirrus-lib/commit/02ff5e33412026b1fedda97727eef66715a27492

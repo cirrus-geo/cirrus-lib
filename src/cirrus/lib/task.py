@@ -100,28 +100,29 @@ class Task(ABC):
         # put validation logic on input Items and process definition here
         return True
 
-    def download_assets(self, assets: Optional[List[str]]=None):
+    def download_item_assets(self, item: Dict, assets: Optional[List[str]]=None):
         """Download provided asset keys for all items in payload. Assets are saved in workdir in a
            directory named by the Item ID, and the items are updated with the new asset hrefs.
 
         Args:
             assets (Optional[List[str]], optional): List of asset keys to download. Defaults to all assets.
         """
-        for i, item in enumerate(self.items):
-            outdir = self._workdir / Path(item['id'])
-            makedirs(outdir, exist_ok=True)
-            self.items[i] = download_item_assets(item, path=outdir, assets=assets)
+        outdir = self._workdir / Path(item['id'])
+        makedirs(outdir, exist_ok=True)
+        item = download_item_assets(item, path=outdir, assets=assets)
+        return item
 
-    def upload_assets(self, assets: Optional[List[str]]=None):
+    def upload_item_assets(self, item: Dict, assets: Optional[List[str]]=None):
         if self._local:
             self.logger.warn('Running in local mode, assets not uploaded')
             return
-        for i, item in enumerate(self.items):
-            self.items[i] = upload_item_assets(item, **self.output_options)
+        item = upload_item_assets(item, assets=assets, **self.output_options)
+        return item
 
     # this should be in PySTAC
     @staticmethod
     def create_item_from_item(item):
+        new_item = deepcopy(item)
         # create a derived output item
         links = [l['href'] for l in item['links'] if l['rel'] == 'self']
         if len(links) == 1:

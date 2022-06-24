@@ -422,7 +422,9 @@ class StateDB:
             Dict: DynamoDB response
         """
         index = None if sort_index == 'default' else sort_index
-
+        
+        # use a filter expression if error_begins_with arg used
+        filter_exp = None
         if error_begins_with:
             filter_exp = Attr("last_error").begins_with(error_begins_with)
 

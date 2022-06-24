@@ -3,13 +3,8 @@ import os
 import sys
 from unittest.result import failfast
 
-from .src.cirrus.lib import statedb
-from .src.cirrus.lib.process_payload import ProcessPayload
-
-# sys.path.insert(
-#     1,
-#     "/Users/arthur/code/hfh-cirrus/docker/geospatial-single-task/external_libs/cirrus_lib/src/cirrus/lib",
-# )
+from src.cirrus.lib import statedb
+from src.cirrus.lib.process_payload import ProcessPayload
 
 
 os.environ["CIRRUS_PAYLOAD_BUCKET"] = "app-cirrus-arthur-dev-payloads"
@@ -26,7 +21,13 @@ failed_runs = test_db.get_items_page(
     collections_workflow="fusion_Hydrosat",
     state="FAILED",
     limit=1000,
-    error_code="Runtime.ImportModuleError",
+    error_begins_with="Runtime.ImportModuleError",
+)
+
+failed_runs_any_cause = test_db.get_items_page(
+    collections_workflow="fusion_Hydrosat",
+    state="FAILED",
+    limit=1000,
 )
 
 for run in failed_runs["items"]:

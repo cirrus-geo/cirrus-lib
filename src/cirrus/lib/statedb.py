@@ -116,10 +116,9 @@ class StateDB:
         return counts
 
     def get_items_page(self, collections_workflow: str,
-                       error_begins_with: Optional[str] = None,
                        state: Optional[str]=None, since: Optional[str]=None,
                        limit=100, nextkey: str=None, sort_ascending: Optional[bool]=False,
-                       sort_index: Optional[str]=None) -> List[Dict]:
+                       sort_index: Optional[str]=None, error_begins_with: Optional[str] = None) -> List[Dict]:
         """Get Items by query
 
         Args:
@@ -136,16 +135,31 @@ class StateDB:
         items = {
             'items': []
         }
+        query_kwargs = {
+            'collections_workflow': collections_workflow,
+            'state': state,
+            'since': since,
+            'sort_ascending': sort_ascending,
+            'sort_index': sort_index,
+            'Limit': limit,
+        }
+
         if nextkey:
             dbitem = self.get_dbitem(nextkey)
             startkey = { key: dbitem[key] for key in ['collections_workflow', 'itemids', 'state_updated', 'updated']}
-            resp = self.query(collections_workflow, state=state, since=since, sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit, ExclusiveStartKey=startkey, )
+            query_kwargs.update({
+                'ExclusiveStartKey': startkey
+                })
+            # resp = self.query(collections_workflow, state=state, since=since, sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit, ExclusiveStartKey=startkey, )
         else:
             if error_begins_with:
-                resp = self.query(collections_workflow, error_begins_with=error_begins_with, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
-            else:
-                resp = self.query(collections_workflow, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
-            
+                query_kwargs.update({'error_begins_with': error_begins_with})
+                # resp = self.query(collections_workflow, error_begins_with=error_begins_with, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
+            # else:
+            #     resp = self.query(collections_workflow, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
+        
+        resp = self.query(**query_kwargs)
+
         for i in resp['Items']:
             items['items'].append(self.dbitem_to_item(i))
         if 'LastEvaluatedKey' in resp:
@@ -403,8 +417,8 @@ class StateDB:
         logger.debug("set aborted")
         return response
 
-    def query(self, collections_workflow: str, error_begins_with: str = None, state: str=None, since: str=None,
-              select: str='ALL_ATTRIBUTES', sort_ascending: bool=False, sort_index: str='updated', **kwargs) -> Dict:
+    def query(self, collections_workflow: str, state: str=None, since: str=None,
+              select: str='ALL_ATTRIBUTES', sort_ascending: bool=False, sort_index: str='updated', error_begins_with: str=None, **kwargs) -> Dict:
         """Perform a single Query on a DynamoDB index
 
         Args:
@@ -450,14 +464,25 @@ class StateDB:
         if 'ExclusiveStartKey' in kwargs:
             kwargs['ExclusiveStartKey'] = {k: kwargs['ExclusiveStartKey'][k] for k in keys}
 
+        kwargs.update({
+            'KeyConditionExpression': expr,
+            'Select': select,
+            'ScanIndexForward': sort_ascending
+        })
+
         if index:
+            kwargs.update({'IndexName': index})
             if filter_exp:
-                resp = self.table.query(IndexName=index, KeyConditionExpression=expr, FilterExpression=filter_exp, Select=select, 
-                                        ScanIndexForward=sort_ascending, **kwargs)
-            else:
-                resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, ScanIndexForward=sort_ascending, **kwargs)
-        else:
-            resp = self.table.query(KeyConditionExpression=expr, Select=select,  ScanIndexForward=sort_ascending, **kwargs)
+                kwargs.update({'FilterExpression': filter_exp})
+                # resp = self.table.query(IndexName=index, KeyConditionExpression=expr, FilterExpression=filter_exp, Select=select, 
+                #                         ScanIndexForward=sort_ascending, **kwargs)
+            # else:
+            #     resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, ScanIndexForward=sort_ascending, **kwargs)
+        # else:
+        #     resp = self.table.query(KeyConditionExpression=expr, Select=select,  ScanIndexForward=sort_ascending, **kwargs)
+
+
+        resp = self.table.query(**kwargs)
 
         return resp
 

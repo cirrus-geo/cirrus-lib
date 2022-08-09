@@ -141,6 +141,14 @@ def test_get_items(state_table):
     assert(len(items) == 1)
 
 
+def test_get_items_error(state_table):
+    items = state_table.get_items(
+        test_dbitem['collections_workflow'],
+        state='FAILED',
+        error_begins_with='failed'
+    )
+    assert(len(items) >= 1)
+
 def test_get_dbitem(state_table):
     dbitem = state_table.get_dbitem(test_item['id'] + '0')
     assert(dbitem['itemids'] == test_dbitem['itemids'] + '0')

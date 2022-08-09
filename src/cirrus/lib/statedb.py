@@ -147,13 +147,11 @@ class StateDB:
         if nextkey:
             dbitem = self.get_dbitem(nextkey)
             startkey = { key: dbitem[key] for key in ['collections_workflow', 'itemids', 'state_updated', 'updated']}
-            query_kwargs.update({
-                'ExclusiveStartKey': startkey
-                })
+            query_kwargs['ExclusiveStartKey'] = startkey
             # resp = self.query(collections_workflow, state=state, since=since, sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit, ExclusiveStartKey=startkey, )
         # else:
         if error_begins_with:
-            query_kwargs.update({'error_begins_with': error_begins_with})
+            query_kwargs['error_begins_with'] = error_begins_with
                 # resp = self.query(collections_workflow, error_begins_with=error_begins_with, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
             # else:
             #     resp = self.query(collections_workflow, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
@@ -471,9 +469,9 @@ class StateDB:
         })
 
         if index:
-            kwargs.update({'IndexName': index})
+            kwargs['IndexName'] = index
             if filter_exp:
-                kwargs.update({'FilterExpression': filter_exp})
+                kwargs['FilterExpression'] = filter_exp
                 # resp = self.table.query(IndexName=index, KeyConditionExpression=expr, FilterExpression=filter_exp, Select=select, 
                 #                         ScanIndexForward=sort_ascending, **kwargs)
             # else:

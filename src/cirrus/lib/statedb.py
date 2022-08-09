@@ -151,9 +151,9 @@ class StateDB:
                 'ExclusiveStartKey': startkey
                 })
             # resp = self.query(collections_workflow, state=state, since=since, sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit, ExclusiveStartKey=startkey, )
-        else:
-            if error_begins_with:
-                query_kwargs.update({'error_begins_with': error_begins_with})
+        # else:
+        if error_begins_with:
+            query_kwargs.update({'error_begins_with': error_begins_with})
                 # resp = self.query(collections_workflow, error_begins_with=error_begins_with, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
             # else:
             #     resp = self.query(collections_workflow, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)

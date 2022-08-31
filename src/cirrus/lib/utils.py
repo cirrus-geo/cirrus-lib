@@ -3,6 +3,7 @@ import json
 import logging
 import requests
 import uuid
+import re
 
 from boto3utils import s3
 from dateutil.parser import parse as dateparse
@@ -11,15 +12,31 @@ from string import Formatter, Template
 from typing import Dict, Optional, List
 from collections.abc import Mapping
 
+from cirrus.lib.errors import NoUrlError
+
+
 logger = logging.getLogger(__name__)
 
+QUEUE_ARN_REGEX = re.compile(
+    r'^arn:aws:sqs:(?P<region>[\-a-z0-9]+):(?P<account_id>\d+):(?P<name>[\-_a-zA-Z0-9]+)$',
+)
+
 batch_client = None
+sqs_client = None
+
 
 def get_batch_client():
     global batch_client
     if batch_client is None:
         batch_client = boto3.client('batch')
     return batch_client
+
+
+def get_sqs_client():
+    global sqs_client
+    if sqs_client is None:
+        sqs_client = boto3.client('sqs')
+    return sqs_client
 
 
 def submit_batch_job(payload, arn, queue='basic-ondemand', definition='geolambda-as-batch', name=None):
@@ -80,46 +97,12 @@ def get_path(item: Dict, template: str='${collection}/${id}') -> str:
             subs[key] = item['properties'][key.replace('__colon__', ':')]
     return Template(_template).substitute(**subs).replace('__colon__', ':')
 
+
 def property_match(feature, props):
     prop_checks = []
     for prop in props:
         prop_checks.append(feature['properties'].get(prop, '') == props[prop])
     return all(prop_checks)
-
-
-# from https://gist.github.com/angstwad/bf22d1822c38a92ec0a9#gistcomment-2622319
-def dict_merge(dct, merge_dct, add_keys=True):
-    """ Recursive dict merge. Inspired by :meth:``dict.update()``, instead of
-    updating only top-level keys, dict_merge recurses down into dicts nested
-    to an arbitrary depth, updating keys. The ``merge_dct`` is merged into
-    ``dct``.
-    This version will return a copy of the dictionary and leave the original
-    arguments untouched.
-    The optional argument ``add_keys``, determines whether keys which are
-    present in ``merge_dict`` but not ``dct`` should be included in the
-    new dict.
-    Args:
-        dct (dict) onto which the merge is executed
-        merge_dct (dict): dct merged into dct
-        add_keys (bool): whether to add new keys
-    Returns:
-        dict: updated dict
-    """
-    dct = dct.copy()
-    if not add_keys:
-        merge_dct = {
-            k: merge_dct[k]
-            for k in set(dct).intersection(set(merge_dct))
-        }
-
-    for k, v in merge_dct.items():
-        if (k in dct and isinstance(dct[k], dict)
-                and isinstance(merge_dct[k], Mapping)):
-            dct[k] = dict_merge(dct[k], merge_dct[k], add_keys=add_keys)
-        else:
-            dct[k] = merge_dct[k]
-
-    return dct
 
 
 def recursive_compare(d1, d2, level='root', print=print):
@@ -164,3 +147,75 @@ def recursive_compare(d1, d2, level='root', print=print):
 
     return same
 
+
+def extract_record(record):
+    if 'body' in record:
+        record = json.loads(record['body'])
+    elif 'Sns' in record:
+        record = record['Sns']
+
+    if 'Message' in record:
+        record = json.loads(record['Message'])
+
+    if 'url' not in record and 'Parameters' in record and 'url' in record['Parameters']:
+        # this is Batch, get the output payload
+        record = {'url': record['Parameters']['url'].replace('.json', '_out.json')}
+
+    return record
+
+
+def normalize_event(event):
+    if 'Records' not in event:
+        # not from SQS or SNS
+        records = [event]
+    else:
+        records = event['Records']
+    return records
+
+
+def extract_event_records(event, convertfn=None):
+    for record in normalize_event(event):
+        yield extract_record(record)
+
+
+def payload_from_s3(record):
+    try:
+        payload = s3().read_json(record['url'])
+    except KeyError:
+        raise NoUrlError('Item does not have a URL and therefore cannot be retrieved from S3')
+    return payload
+
+
+def parse_queue_arn(queue_arn):
+    parsed = QUEUE_ARN_REGEX.match(queue_arn)
+
+    if parsed is None:
+        raise ValueError(f'Not a valid SQS ARN: {queue_arn}')
+
+    return parsed.groupdict()
+
+
+QUEUE_URLS = {}
+
+def get_queue_url(message):
+    arn = message['eventSourceARN']
+
+    try:
+        return QUEUE_URLS[arn]
+    except KeyError:
+        pass
+
+    queue_attrs = parse_queue_arn(arn)
+    queue_url = get_sqs_client().get_queue_url(
+        QueueName=queue_attrs['name'],
+        QueueOwnerAWSAccountId=queue_attrs['account_id'],
+    )['QueueUrl']
+    QUEUE_URLS[arn] = queue_url
+    return queue_url
+
+
+def delete_from_queue(message):
+    get_sqs_client().delete_message(
+        QueueUrl=get_queue_url(message),
+        ReceiptHandle=message.get('receiptHandle', message['ReceiptHandle']),
+    )

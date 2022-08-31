@@ -17,7 +17,7 @@ from boto3utils import s3
 from cirrus.lib.statedb import StateDB
 from cirrus.lib.logging import get_task_logger
 from cirrus.lib.transfer import get_s3_session
-from cirrus.lib.utils import get_path, property_match
+from cirrus.lib.utils import get_path, property_match, extract_event_records
 
 
 # envvars
@@ -107,27 +107,16 @@ class ProcessPayload(dict):
             event (Dict): An event from SNS, SQS, or containing an s3 URL to payload
 
         Returns:
-            ProcessPayload: A ProcessPaylaod instance
+            ProcessPayload: A ProcessPayload instance
         """
-        if 'Records' in event:
-            records = [json.loads(r['body']) for r in event['Records']]
-            # there should be only one
-            assert(len(records) == 1)
-            if 'Message' in records[0]:
-                # SNS
-                payload = json.loads(records[0]['Message'])
-            else:
-                # SQS
-                payload = records[0]
-        elif 'url' in event:
-            payload = s3().read_json(event['url'])
-        elif 'Parameters' in event and 'url' in event['Parameters']:
-            # this is Batch, get the output payload
-            url = event['Parameters']['url'].replace('.json', '_out.json')
-            payload = s3().read_json(url)
-        else:
-            payload = event
-        return cls(payload, **kwargs)
+        records = list(extract_event_records(event))
+
+        if len(records) == 0:
+            raise ValueError('Failed to extract record: %s', json.dumps(event))
+        elif len(records) > 1:
+            raise ValueError('Multiple payloads are not supported')
+
+        return cls(records[0], **kwargs)
 
     def get_task(self, task_name, *args, **kwargs):
         return self.tasks.get(task_name, *args, **kwargs)
@@ -530,14 +519,13 @@ class ProcessPayloads(object):
         payload_ids = []
         # check existing states
         states = self.get_states()
+
         for payload in self.payloads:
             _replace = replace or payload.process.get('replace', False)
+
             # check existing state for Item, if any
             state = states.get(payload['id'], '')
-            # don't try and process these - if they are stuck they should be removed from db
-            #if state in ['QUEUED', 'PROCESSING']:
-            #    logger.info(f"Skipping {payload['id']}, in {state} state")
-            #    continue
+
             if payload['id'] in payload_ids:
                 logger.warning(f"Dropping duplicated payload {payload['id']}")
             elif state in ['FAILED', 'ABORTED', ''] or _replace:

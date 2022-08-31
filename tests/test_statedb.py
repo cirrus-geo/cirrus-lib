@@ -34,14 +34,20 @@ test_item = {
 }
 
 
-@mock_dynamodb2
-def setup_table():
-    boto3.setup_default_session()
-    client = boto3.resource('dynamodb')
+# use a low limit to force paging
+StateDB.limit = 10
+
+
+def create_items_bulk(item_count, fn, **kwargs):
+    for index in range(item_count):
+        newitem = deepcopy(test_item)
+        fn(f'{newitem["id"]}{index}', **kwargs)
+
+
+def setup_table(client):
     with open(os.path.join(testpath, 'statedb_schema.json')) as f:
         schema = json.loads(f.read())
     table = client.create_table(**schema)
-    table.meta.client.get_waiter('table_exists').wait(TableName=table_name)
     return StateDB(table_name)
 
 
@@ -83,20 +89,9 @@ def test_since_to_timedelta():
     assert(td.seconds == 600)
 
 
-NITEMS = 1000
-
-
-@pytest.fixture(scope='session')
-def state_table():
-    mock = mock_dynamodb2()
-    mock.start()
-    statedb = setup_table()
-    for i in range(NITEMS):
-        newitem = deepcopy(test_item)
-        statedb.set_processing(
-            f'{newitem["id"]}{i}',
-            execution='arn::test',
-        )
+@pytest.fixture
+def state_table(dynamo):
+    statedb = setup_table(dynamo)
     statedb.set_processing(
         f'{test_item["id"]}_processing',
         execution='arn::test',
@@ -117,12 +112,7 @@ def state_table():
         f'{test_item["id"]}_aborted',
     )
     yield statedb
-    for i in range(NITEMS):
-        statedb.delete_item(f'{test_item["id"]}{i}')
-    for s in STATES:
-        statedb.delete_item(f'{test_item["id"]}_{s.lower()}')
     statedb.delete()
-    mock.stop()
 
 
 def test_get_items(state_table):
@@ -131,7 +121,32 @@ def test_get_items(state_table):
         state='PROCESSING',
         since='1h',
     )
-    assert(len(items) == NITEMS + 1)
+    assert(len(items) == 1)
+
+
+def test_get_items_bulk(state_table):
+    _count = 25
+    create_items_bulk(_count, state_table.set_processing, execution='arn::test')
+    items = state_table.get_items(
+        test_dbitem['collections_workflow'],
+        state='PROCESSING',
+        since='1h',
+    )
+    assert(len(items) == _count + 1)
+
+
+def test_get_items_limit_1(state_table):
+    items = state_table.get_items(
+        test_dbitem['collections_workflow'],
+        state='PROCESSING',
+        since='1h',
+        limit=1,
+    )
+    assert(len(items) == 1)
+
+
+def test_get_items_limit_1_bulk(state_table):
+    create_items_bulk(20, state_table.set_processing, execution='arn::test')
     items = state_table.get_items(
         test_dbitem['collections_workflow'],
         state='PROCESSING',
@@ -144,14 +159,31 @@ def test_get_items(state_table):
 def test_get_items_error(state_table):
     items = state_table.get_items(
         test_dbitem['collections_workflow'],
-        state='FAILED',
-        error_begins_with='failed'
+        error_begins_with='failed',
     )
-    assert(len(items) >= 1)
+    assert(len(items) == 1)
+
+
+def test_get_items_error_with_state(state_table):
+    items = state_table.get_items(
+        test_dbitem['collections_workflow'],
+        state='FAILED',
+        error_begins_with='failed',
+    )
+    assert(len(items) == 1)
+
+
+def test_get_items_error_no_items(state_table):
+    items = state_table.get_items(
+        test_dbitem['collections_workflow'],
+        error_begins_with='nonsense-prefix',
+    )
+    assert(len(items) == 0)
+
 
 def test_get_dbitem(state_table):
-    dbitem = state_table.get_dbitem(test_item['id'] + '0')
-    assert(dbitem['itemids'] == test_dbitem['itemids'] + '0')
+    dbitem = state_table.get_dbitem(test_item['id'] + '_processing')
+    assert(dbitem['itemids'] == test_dbitem['itemids'] + '_processing')
     assert(dbitem['collections_workflow'] == test_dbitem['collections_workflow'])
     assert(dbitem['state_updated'].startswith('PROCESSING'))
 
@@ -162,7 +194,9 @@ def test_get_dbitem_noitem(state_table):
 
 
 def test_get_dbitems(state_table):
-    ids = [test_item['id'] + str(i) for i in range(10)]
+    count = 5
+    create_items_bulk(count, state_table.set_processing, execution='arn::test')
+    ids = [test_item['id'] + str(i) for i in range(count)]
     dbitems = state_table.get_dbitems(ids)
     assert(len(dbitems) == len(ids))
     for dbitem in dbitems:
@@ -170,7 +204,9 @@ def test_get_dbitems(state_table):
 
 
 def test_get_dbitems_duplicates(state_table):
-    ids = [test_item['id'] + str(i) for i in range(10)]
+    count = 5
+    create_items_bulk(count, state_table.set_processing, execution='arn::test')
+    ids = [test_item['id'] + str(i) for i in range(count)]
     ids.append(ids[0])
     dbitems = state_table.get_dbitems(ids)
     for dbitem in dbitems:
@@ -198,15 +234,80 @@ def test_get_states(state_table):
 
 
 def test_get_counts(state_table):
+    _count = 3
+    create_items_bulk(_count, state_table.set_processing, execution='arn::test')
     count = state_table.get_counts(test_dbitem['collections_workflow'])
-    assert(count == NITEMS + len(STATES))
+    assert(count == _count + len(STATES))
     for s in STATES:
         count = state_table.get_counts(test_dbitem['collections_workflow'], state=s)
         if s == 'PROCESSING':
-            assert(count == NITEMS + 1)
+            assert(count == _count + 1)
         else:
             assert(count == 1)
     count = state_table.get_counts(test_dbitem['collections_workflow'], since='1h')
+
+
+def test_get_counts_error(state_table):
+    _count = 25
+    create_items_bulk(_count, state_table.set_failed, msg='failed')
+    count = state_table.get_counts(
+        test_dbitem['collections_workflow'],
+        error_begins_with='fail',
+    )
+    assert(count == _count + 1)
+
+
+def test_get_counts_state(state_table):
+    _count = 25
+    create_items_bulk(_count, state_table.set_failed, msg='failed')
+    count = state_table.get_counts(
+        test_dbitem['collections_workflow'],
+        state='FAILED',
+    )
+    assert(count == _count + 1)
+
+
+def test_get_counts_state_limit(state_table):
+    _count = 25
+    create_items_bulk(_count, state_table.set_failed, msg='failed')
+    count = state_table.get_counts(
+        test_dbitem['collections_workflow'],
+        state='FAILED',
+        limit=15,
+    )
+    assert(count == '15+')
+
+
+def test_get_counts_since_limit_under(state_table):
+    _count = 20
+    create_items_bulk(_count, state_table.set_failed, msg='failed')
+    count = state_table.get_counts(
+        test_dbitem['collections_workflow'],
+        since='1h',
+        limit=30,
+    )
+    assert(count == _count + len(STATES))
+
+
+def test_get_counts_since(state_table):
+    _count = 25
+    create_items_bulk(_count, state_table.set_failed, msg='failed')
+    count = state_table.get_counts(
+        test_dbitem['collections_workflow'],
+        since='1h',
+    )
+    assert(count == _count + len(STATES))
+
+
+def test_get_counts_since_state(state_table):
+    _count = 25
+    create_items_bulk(_count, state_table.set_failed, msg='failed')
+    count = state_table.get_counts(
+        test_dbitem['collections_workflow'],
+        since='1h',
+        state='FAILED',
+    )
+    assert(count == _count + 1)
 
 
 def test_set_processing(state_table):
@@ -219,13 +320,21 @@ def test_set_processing(state_table):
 
 def test_second_execution(state_table):
     # check that processing adds new execution to list
+    resp = state_table.set_processing(test_item['id'], execution='arn::test1')
     resp = state_table.set_processing(test_item['id'], execution='arn::test2')
     dbitem = state_table.get_dbitem(test_item['id'])
     assert(len(dbitem['executions']) == 2)
     assert(dbitem['executions'][-1] == 'arn::test2')
 
 
-def test_set_outputs(state_table):
+def test_set_outputs_(state_table):
+    resp = state_table.set_outputs(test_item['id'], outputs=['output-item'])
+    assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem['outputs'][0] == 'output-item')
+
+
+def test_set_outputs_completed(state_table):
     resp = state_table.set_completed(test_item['id'], outputs=['output-item'])
     assert(resp['ResponseMetadata']['HTTPStatusCode'] == 200)
     dbitem = state_table.get_dbitem(test_item['id'])
@@ -276,10 +385,7 @@ def test_delete_item(state_table):
     assert(dbitem is None)
 
 
-def _test_get_counts_paging(state_table):
-    for i in range(5000):
-        state_table.set_processing(test_item['id'] + f"_{i}", execution='arn::test')
-    count = state_table.get_counts(test_dbitem['collections_workflow'])
-    assert(count == 1004)
-    for i in range(5000):
-        state_table.delete_item(test_item['id'] + f"_{i}")
+def test_claim_processing(state_table):
+    state_table.claim_processing(test_item['id'])
+    dbitem = state_table.get_dbitem(test_item['id'])
+    assert(dbitem['state_updated'].startswith('PROCESSING'))

@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 class StateDB:
+    limit = None
 
     def __init__(self, table_name: str=os.getenv('CIRRUS_STATE_DB', 'test')):
         """Initialize a StateDB instance using the Cirrus State DB table
@@ -90,44 +91,52 @@ class StateDB:
             logger.error(msg, exc_info=True)
             raise Exception(msg)
 
-    def get_counts(self, collections_workflow: str, state: str=None, since: str=None, limit: int=None) -> Dict:
+    def get_counts(self, collections_workflow: str, limit: int=None, **query_kwargs) -> Dict:
         """Get counts by query
 
         Args:
-            collections_workflow (str): /-separated list of collections (input or output depending on index)
-            state (Optional[str], optional): State of Items to get. Defaults to None.
-            since (Optional[str], optional): Get Items since this amount of time in the past. Defaults to None.
-            limit (int, optional): The max number to return, anything over will be reported as "<limit>+", e.g. "1000+"
+            collections_workflow (str): /-separated list of collections
+                (input or output depending on index).
+            limit (int, optional): The max number to return, anything over will be
+                reported as "<limit>+", e.g. "1000+".
+
+            Additional kwargs used by StateDB.query() are also supported here.
 
         Returns:
-            Dict: JSON containing counts key with counts for each state requested
+            Dict: JSON containing counts key with counts for each state requested.
         """
+        query_kwargs['collections_workflow'] = collections_workflow
+        query_kwargs['select'] = 'COUNT'
+
         counts = 0
-        resp = self.query(collections_workflow, state=state, since=since, select='COUNT')
+        resp = self.query(**query_kwargs)
         counts = resp['Count']
-        while 'LastEvaluatedKey' in resp:
-            resp = self.query(collections_workflow, state=state, since=since, select='COUNT',
-                              ExclusiveStartKey=resp['LastEvaluatedKey'])
+
+        while 'LastEvaluatedKey' in resp and (not limit or counts <= limit):
+            query_kwargs['ExclusiveStartKey'] = resp['LastEvaluatedKey']
+            resp = self.query(**query_kwargs)
             counts += resp['Count']
-            if limit and counts > limit:
-                counts = f"{limit}+"
-                break
+
+        if limit and counts > limit:
+            counts = f"{limit}+"
 
         return counts
 
-    def get_items_page(self, collections_workflow: str,
-                       state: Optional[str]=None, since: Optional[str]=None,
-                       limit=100, nextkey: str=None, sort_ascending: Optional[bool]=False,
-                       sort_index: Optional[str]=None, error_begins_with: Optional[str] = None) -> List[Dict]:
+    def get_items_page(
+        self,
+        collections_workflow: str,
+        limit=100,
+        nextkey: str=None,
+        **kwargs,
+    ) -> List[Dict]:
         """Get Items by query
 
         Args:
             collections_workflow (str): /-separated list of input collections_workflow
-            error_begins_with (Optional[str], optional): Error code to filter by.
-            state (Optional[str], optional): State of Items to get (PROCESSING, COMPLETED, FAILED, INVALID, ABORTED)
-            since (Optional[str], optional): Get Items since this amount of time in the past. Defaults to None.
-            sort_ascending (Optional[bool], optional): Determines which direction the index of the results will be sorted. Defaults to False.
-            sort_index (Optional[str], optional): Determines which index to use for sorting, if not applying a filter (state_updated, updated). Defaults to None.
+            limit (int, optional): number of items to return per page
+            nextkey (str, optional): the item ID from which to begin returned page
+
+            Additional kwargs used by StateDB.query() are also supported here.
 
         Returns:
             Dict: List of Items
@@ -135,33 +144,27 @@ class StateDB:
         items = {
             'items': []
         }
-        query_kwargs = {
+        kwargs.update({
             'collections_workflow': collections_workflow,
-            'state': state,
-            'since': since,
-            'sort_ascending': sort_ascending,
-            'sort_index': sort_index,
             'Limit': limit,
-        }
+        })
 
         if nextkey:
             dbitem = self.get_dbitem(nextkey)
-            startkey = { key: dbitem[key] for key in ['collections_workflow', 'itemids', 'state_updated', 'updated']}
-            query_kwargs['ExclusiveStartKey'] = startkey
-            # resp = self.query(collections_workflow, state=state, since=since, sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit, ExclusiveStartKey=startkey, )
-        # else:
-        if error_begins_with:
-            query_kwargs['error_begins_with'] = error_begins_with
-                # resp = self.query(collections_workflow, error_begins_with=error_begins_with, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
-            # else:
-            #     resp = self.query(collections_workflow, state=state, since=since,  sort_ascending=sort_ascending, sort_index=sort_index, Limit=limit)
-        
-        resp = self.query(**query_kwargs)
+            startkey = {
+                key: dbitem[key]
+                for key in ['collections_workflow', 'itemids', 'state_updated', 'updated']
+            }
+            kwargs['ExclusiveStartKey'] = startkey
+
+        resp = self.query(**kwargs)
 
         for i in resp['Items']:
             items['items'].append(self.dbitem_to_item(i))
+
         if 'LastEvaluatedKey' in resp:
             items['nextkey'] = self.key_to_payload_id(resp['LastEvaluatedKey'])
+
         return items
 
     def get_items(self, *args, limit=None, **kwargs) -> Dict:
@@ -415,30 +418,43 @@ class StateDB:
         logger.debug("set aborted")
         return response
 
-    def query(self, collections_workflow: str, state: str=None, since: str=None,
-              select: str='ALL_ATTRIBUTES', sort_ascending: bool=False, sort_index: str='updated', error_begins_with: str=None, **kwargs) -> Dict:
+    def query(
+        self,
+        collections_workflow: str,
+        state: str=None,
+        since: str=None,
+        select: str='ALL_ATTRIBUTES',
+        sort_ascending: bool=False,
+        sort_index: str='updated',
+        error_begins_with: str=None,
+        **kwargs,
+    ) -> Dict:
         """Perform a single Query on a DynamoDB index
 
         Args:
             collections_workflow (str): The complete has to query
-            error_begins_with (Optional[str], optional): Error code to filter by.
-            state (str, optional): The state of the Item. Defaults to None.
-            since (str, optional): Query for items since this time. Defaults to None.
-            select (str, optional): DynamoDB Select statement (ALL_ATTRIBUTES, COUNT). Defaults to 'ALL_ATTRIBUTES'.
-            sort_ascending (bool, optional): Determines which direction the index of the results will be sorted.
-                Defaults to False/Descending.
-            sort_index (str, optional): Determines which index to use for sorting, if not applying a filter (default, state_updated, updated)
+            state (Optional[str], optional): State of Items to get. Defaults to None.
+                Valid values: PROCESSING, COMPLETED, FAILED, INVALID, ABORTED.
+            since (Optional[str], optional): Get Items since this amount of time
+                in the past. Defaults to None.
+            select (str, optional): DynamoDB Select statement (ALL_ATTRIBUTES, COUNT).
+                Defaults to 'ALL_ATTRIBUTES'.
+            sort_ascending (bool, optional): Determines which direction the index of
+                the results will be sorted. Defaults to False/Descending.
+            sort_index (str, optional): Determines which index to use for sorting,
+                if not applying a filter (default, state_updated, updated).
                 If default, sorting will use primary index and sort by item_ids
+            error_begins_with (Optional[str], optional): Filter by error prefix.
+
+            Additional kwargs used by dynamodb.query() are also supported here.
 
         Returns:
             Dict: DynamoDB response
         """
         index = None if sort_index == 'default' else sort_index
-        
-        # use a filter expression if error_begins_with arg used
-        filter_exp = None
+
         if error_begins_with:
-            filter_exp = Attr("last_error").begins_with(error_begins_with)
+            kwargs['FilterExpression']  = Attr("last_error").begins_with(error_begins_with)
 
         # always use the hash of the table which is same in all Global Secondary Indices
         expr = Key('collections_workflow').eq(collections_workflow)
@@ -446,19 +462,23 @@ class StateDB:
             start = datetime.now(timezone.utc) - self.since_to_timedelta(since)
             begin = f"{start.isoformat()}"
             end = f"{datetime.now(timezone.utc).isoformat()}"
+
             if state:
                 index = 'state_updated'
                 expr = expr & Key(index).between(f"{state}_{begin}", f"{state}_{end}")
             else:
                 index = 'updated'
                 expr = expr & Key(index).between(begin, end)
+
         elif state:
             index = 'state_updated'
             expr = expr & Key(index).begins_with(state)
 
         keys = ['collections_workflow', 'itemids']
+
         if index:
-            keys.append(index)
+            kwargs['IndexName'] = index
+
         if 'ExclusiveStartKey' in kwargs:
             kwargs['ExclusiveStartKey'] = {k: kwargs['ExclusiveStartKey'][k] for k in keys}
 
@@ -468,18 +488,10 @@ class StateDB:
             'ScanIndexForward': sort_ascending
         })
 
-        if index:
-            kwargs['IndexName'] = index
-            if filter_exp:
-                kwargs['FilterExpression'] = filter_exp
-                # resp = self.table.query(IndexName=index, KeyConditionExpression=expr, FilterExpression=filter_exp, Select=select, 
-                #                         ScanIndexForward=sort_ascending, **kwargs)
-            # else:
-            #     resp = self.table.query(IndexName=index, KeyConditionExpression=expr, Select=select, ScanIndexForward=sort_ascending, **kwargs)
-        # else:
-        #     resp = self.table.query(KeyConditionExpression=expr, Select=select,  ScanIndexForward=sort_ascending, **kwargs)
+        if self.limit and (not 'Limit' in kwargs or self.limit < kwargs['Limit']):
+            kwargs['Limit'] = self.limit
 
-
+        print(kwargs)
         resp = self.table.query(**kwargs)
 
         return resp
@@ -560,4 +572,4 @@ class StateDB:
         hours = int(since[0:-1]) if unit == 'h' else 0
         minutes = int(since[0:-1]) if unit == 'm' else 0
         return timedelta(days=days, hours=hours, minutes=minutes)
-        
+

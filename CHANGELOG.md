@@ -8,8 +8,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Added
 
-* Ability to filter statedb job queries using a specific
-  beginswith string
+* Ability to filter statedb job queries using a specific beginswith string ([#49])
 
 
 ## [v0.7.0] - 2022-02-17
@@ -256,6 +255,7 @@ Initial Release
 [#37]: https://github.com/cirrus-geo/cirrus-lib/pull/37
 [#38]: https://github.com/cirrus-geo/cirrus-lib/pull/38
 [#41]: https://github.com/cirrus-geo/cirrus-lib/pull/41
+[#49]: https://github.com/cirrus-geo/cirrus-lib/pull/49
 
 [#44]: https://github.com/cirrus-geo/cirrus-lib/issues/41
 

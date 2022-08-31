@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+* Support functions for cirrus-geo `process` lambda rework ([#50])
+
 
 ## [v0.8.0] - 2022-09-12
 
@@ -271,6 +275,7 @@ Initial Release
 [#38]: https://github.com/cirrus-geo/cirrus-lib/pull/38
 [#41]: https://github.com/cirrus-geo/cirrus-lib/pull/41
 [#49]: https://github.com/cirrus-geo/cirrus-lib/pull/49
+[#50]: https://github.com/cirrus-geo/cirrus-lib/pull/50
 
 [#44]: https://github.com/cirrus-geo/cirrus-lib/issues/44
 [#51]: https://github.com/cirrus-geo/cirrus-lib/issues/51

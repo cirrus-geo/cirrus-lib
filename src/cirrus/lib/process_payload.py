@@ -296,14 +296,13 @@ class ProcessPayload(dict):
         Returns:
             Dict: Attributes for SNS publishing
         """
+        # note that sns -> sqs supports only 10 message attributes
+        # when not using raw mode, and we currently have 10 attrs
+        # possible
         attr = {
             'collection': {
                 'DataType': 'String',
                 'StringValue': item['collection']
-            },
-            'datetime': {
-                'DataType': 'String',
-                'StringValue': item['properties']['datetime']
             },
             'bbox.ll_lon': {
                 'DataType': 'Number',
@@ -322,11 +321,41 @@ class ProcessPayload(dict):
                 'StringValue': str(item['bbox'][3])
             }
         }
+
+        if 'start_datetime' in item['properties']:
+            attr['start_datetime'] = {
+                'DataType': 'String',
+                'StringValue': item['properties']['start_datetime']
+            }
+        elif 'datetime' in item['properties']:
+            attr['start_datetime'] = {
+                'DataType': 'String',
+                'StringValue': item['properties']['datetime']
+            }
+
+        if 'end_datetime' in item['properties']:
+            attr['end_datetime'] = {
+                'DataType': 'String',
+                'StringValue': item['properties']['end_datetime']
+            }
+        elif 'datetime' in item['properties']:
+            attr['end_datetime'] = {
+                'DataType': 'String',
+                'StringValue': item['properties']['datetime']
+            }
+
+        if 'datetime' in item['properties']:
+            attr['datetime'] = {
+                'DataType': 'String',
+                'StringValue': item['properties']['datetime']
+            }
+
         if 'eo:cloud_cover' in item['properties']:
             attr['cloud_cover'] = {
                 'DataType': 'Number',
                 'StringValue': str(item['properties']['eo:cloud_cover'])
             }
+
         if item['properties']['created'] != item['properties']['updated']:
             attr['status'] = {
                 'DataType': 'String',
@@ -337,6 +366,7 @@ class ProcessPayload(dict):
                 'DataType': 'String',
                 'StringValue': 'created'
             }
+
         return attr
 
     def publish_to_sns(self, topic_arn):

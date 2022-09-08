@@ -104,6 +104,18 @@ def test_sns_attributes(base_payload):
     attr = ProcessPayload.sns_attributes(payload['features'][0])
     assert attr['cloud_cover']['StringValue'] == '51.56'
     assert attr['datetime']['StringValue'] == '2020-11-03T15:22:26Z'
+    assert attr['start_datetime']['StringValue'] == '2020-11-03T15:22:26Z'
+    assert attr['end_datetime']['StringValue'] == '2020-11-03T15:22:26Z'
+
+
+def test_sns_attributes_other_dates(base_payload):
+    base_payload['features'][0]['properties']['start_datetime'] = \
+        base_payload['features'][0]['properties'].pop('datetime')
+    payload = ProcessPayload(base_payload)
+    attr = ProcessPayload.sns_attributes(payload['features'][0])
+    assert 'datetime' not in attr
+    assert attr['start_datetime']['StringValue'] == '2020-11-03T15:22:26Z'
+    assert 'end_datetime' not in attr
 
 
 def test_get_items_by_properties(base_payload):

@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 * Support for an `ABORTED` workflow state ([#44])
+* Add `start_datetime` and `end_datetime` message attributes for messages to
+  `CIRRUS_PUBLISH_SNS` ([#53])
+
+### Fixed
+
+* Missing `datetime` will not fail message publishing ([#53])
 
 
 ## [v0.6.2] - 2022-02-07
@@ -262,8 +268,9 @@ Initial Release
 [#41]: https://github.com/cirrus-geo/cirrus-lib/pull/41
 [#49]: https://github.com/cirrus-geo/cirrus-lib/pull/49
 
-[#44]: https://github.com/cirrus-geo/cirrus-lib/issues/41
+[#44]: https://github.com/cirrus-geo/cirrus-lib/issues/44
 [#51]: https://github.com/cirrus-geo/cirrus-lib/issues/51
+[#53]: https://github.com/cirrus-geo/cirrus-lib/issues/53
 
 [c919fad]: https://github.com/cirrus-geo/cirrus-lib/commit/c919fadb83bb4f5cdfd082d482e25975ce12aa2c
 [02ff5e3]: https://github.com/cirrus-geo/cirrus-lib/commit/02ff5e33412026b1fedda97727eef66715a27492

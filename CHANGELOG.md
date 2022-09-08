@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 * Ability to filter statedb job queries using a specific beginswith string ([#49])
 
+### Changed
+
+* `ProcessPayload.process['output_options'] has been deprecated in favor of
+  `'upload_options'` ([#51])
+
 
 ## [v0.7.0] - 2022-02-17
 
@@ -258,6 +263,7 @@ Initial Release
 [#49]: https://github.com/cirrus-geo/cirrus-lib/pull/49
 
 [#44]: https://github.com/cirrus-geo/cirrus-lib/issues/41
+[#51]: https://github.com/cirrus-geo/cirrus-lib/issues/51
 
 [c919fad]: https://github.com/cirrus-geo/cirrus-lib/commit/c919fadb83bb4f5cdfd082d482e25975ce12aa2c
 [02ff5e3]: https://github.com/cirrus-geo/cirrus-lib/commit/02ff5e33412026b1fedda97727eef66715a27492

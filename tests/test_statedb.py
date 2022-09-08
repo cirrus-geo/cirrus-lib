@@ -25,7 +25,7 @@ test_dbitem = {
 test_item = {
     "id": "col1/workflow-wf1/item1/item2",
     "process": {
-        "output_options": {
+        "upload_options": {
             "collections": {
                 "output-collection": ".*"
             }

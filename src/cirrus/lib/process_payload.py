@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import uuid
+import warnings
 import jsonpath_ng.ext as jsonpath
 
 from datetime import datetime, timezone
@@ -58,12 +59,25 @@ class ProcessPayload(dict):
         if update:
             self.update()
 
-        assert('output_options' in self.process)
+        if 'output_options' in self.process and not 'upload_options' in self.process:
+            self.process['upload_options'] = self.process['output_options']
+            warnings.warn(
+                "Deprecated: process 'output_options' has been renamed to 'upload_options'",
+            )
+
+        # We could explicitly handle the situation where both output and upload
+        # options are provided, but I think it reasonable for us to expect some
+        # people might continue using it where they had been (ab)using it for
+        # custom needs, which is why we don't just pop it above. In fact,
+        # because we are copying and not moving the values to that new key, we
+        # are creating this exact situation.
+
+        assert('upload_options' in self.process)
         assert('workflow' in self.process)
 
         # convert old functions field to tasks
         if 'functions' in self.process:
-            self.logger.warning("Deprecated: process 'functions' has been renamed to 'tasks'")
+            warnings.warn("Deprecated: process 'functions' has been renamed to 'tasks'")
             self.process['tasks'] = self.process.pop('functions')
 
         assert('tasks' in self.process)
@@ -157,9 +171,9 @@ class ProcessPayload(dict):
     # assign collections to Items given a mapping of Col ID: ID regex
     def assign_collections(self):
         """Assign new collections to all Items (features) in ProcessPayload
-            based on self.process['output_options']['collections']
+            based on self.process['upload_options']['collections']
         """
-        collections = self.process['output_options'].get('collections', {})
+        collections = self.process['upload_options'].get('collections', {})
         # loop through all Items in ProcessPayload
         for item in self['features']:
             # loop through all provided output collections regexs
@@ -224,7 +238,7 @@ class ProcessPayload(dict):
         Returns:
             List: List of s3 URLs to published Items
         """
-        opts = self.process.get('output_options', {})
+        opts = self.process.get('upload_options', {})
         s3urls = []
         for item in self['features']:
             # determine URL of data bucket to publish to- always do this

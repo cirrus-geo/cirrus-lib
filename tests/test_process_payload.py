@@ -69,6 +69,14 @@ def test_open_payload(base_payload):
         "sentinel-s2-l2a/workflow-cog-archive/S2B_17HQD_20201103_0_L2A"
 
 
+def test_open_payload_output_options(base_payload):
+    base_payload['process']['output_options'] = base_payload['process'].pop('upload_options')
+    payload = ProcessPayload(**base_payload)
+    assert payload['id'] == \
+        "sentinel-s2-l2a/workflow-cog-archive/S2B_17HQD_20201103_0_L2A"
+    assert payload.process['upload_options']
+
+
 def test_update_payload(base_payload):
     del base_payload['id']
     del base_payload['features'][0]['links']
@@ -86,7 +94,7 @@ def test_from_event(sqs_event):
 
 def test_assign_collections(base_payload):
     payload = ProcessPayload(base_payload)
-    payload['process']['output_options']['collections'] = {'test': '.*'}
+    payload['process']['upload_options']['collections'] = {'test': '.*'}
     payload.assign_collections()
     assert payload['features'][0]['collection'] == 'test'
 

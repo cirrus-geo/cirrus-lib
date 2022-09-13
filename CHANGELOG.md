@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ### Changed
 
-* `ProcessPayload.process['output_options'] has been deprecated in favor of
+* `ProcessPayload.process['output_options']` has been deprecated in favor of
   `'upload_options'` ([#51])
 
 ### Fixed

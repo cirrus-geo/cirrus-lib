@@ -6,14 +6,23 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+
+## [v0.8.0] - 2022-09-12
+
 ### Added
 
 * Ability to filter statedb job queries using a specific beginswith string ([#49])
+* Add `start_datetime` and `end_datetime` message attributes for messages to
+  `CIRRUS_PUBLISH_SNS` ([#53])
 
 ### Changed
 
 * `ProcessPayload.process['output_options'] has been deprecated in favor of
   `'upload_options'` ([#51])
+
+### Fixed
+
+* Missing `datetime` will not fail message publishing ([#53])
 
 
 ## [v0.7.0] - 2022-02-17
@@ -21,12 +30,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 
 * Support for an `ABORTED` workflow state ([#44])
-* Add `start_datetime` and `end_datetime` message attributes for messages to
-  `CIRRUS_PUBLISH_SNS` ([#53])
-
-### Fixed
-
-* Missing `datetime` will not fail message publishing ([#53])
 
 
 ## [v0.6.2] - 2022-02-07
@@ -233,7 +236,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 Initial Release
 
-[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.7.0...main
+[Unreleased]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.8.0...main
+[v0.8.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.7.0...v0.8.0
 [v0.7.0]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.2...v0.7.0
 [v0.6.2]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.1...v0.6.2
 [v0.6.1]: https://github.com/cirrus-geo/cirrus-lib/compare/v0.6.0...v0.6.1

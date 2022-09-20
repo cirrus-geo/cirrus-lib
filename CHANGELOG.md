@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+### Added
+
+* Added `predicate=` option to `transfer.download_item_assets`, allowing a function to 
+determine which assets to download
 
 ## [v0.8.0] - 2022-09-12
 

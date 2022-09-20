@@ -1,4 +1,5 @@
 # import moto before any boto3 module
+from copy import deepcopy
 from moto import mock_s3, mock_secretsmanager
 import boto3
 import os
@@ -61,6 +62,21 @@ class Test(unittest.TestCase):
         new_item = transfer.download_item_assets(item, path=testpath)
         for k in new_item['assets']:
             assert(os.path.exists(new_item['assets'][k]['href']))
+
+    def test_download_item_assets_with_predicate(self):
+        item = self.get_test_item()
+        item['assets']['another_remote'] = {
+            'href': f"s3://{testbucket}/{os.path.basename(__file__)}",
+            'roles': ['example']
+        }
+        new_item = transfer.download_item_assets(item, path=testpath, predicate=lambda a: 'roles' in a)
+        download_count = 0
+        for k in new_item['assets']:
+            if 'roles' in new_item['assets'][k]:
+                download_count = download_count + 1
+                assert("another_remote" == k)
+                assert(os.path.exists(new_item['assets'][k]['href']))
+        assert download_count == 1
 
     def test_upload_item_assets(self):
         item = self.get_test_item()

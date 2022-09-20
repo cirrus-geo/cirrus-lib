@@ -10,7 +10,7 @@ from dateutil.parser import parse as dateparse
 from os import getenv, path as op
 from cirrus.lib.utils import get_path
 
-from typing import Dict, Optional, List
+from typing import Callable, Dict, Optional, List
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ def download_from_http(url: str, path: str='') -> str:
     return filename
 
 
-def download_item_assets(item: Dict, path: str='', assets: Optional[List[str]]=None) -> Dict:
+def download_item_assets(item: Dict, path: str='', assets: Optional[List[str]]=None, predicate:Callable[[Dict], bool]=None) -> Dict:
     """Download STAC Item assets to local filesystem
 
     Args:
@@ -86,17 +86,29 @@ def download_item_assets(item: Dict, path: str='', assets: Optional[List[str]]=N
         path (str, optional): Path to download files to. Defaults to current directory
         assets (Optional[List[str]], optional): List of asset keys to download. Defaults to all assets
         s3_session (s3, optional): boto3-utils s3 object for s3 interactions. Defaults to None
-
+        predicate (Callable[[Dict], bool], optional): a predicate function used to filter which assets are to be downloaded.
+        
+    If both the `assets` and the `predicate` function are specified, the predicate will be applied to the list
+    of assets.
+    
+    The predicate will not remove the filtered assets, rather they will remain in the item, but with their original URLs.
+    
     Returns:
         Dict: A new STAC Item with downloaded assets pointing to newly downloaded files
     """
 
     # if assets not provided, download all assets
     assets = assets if assets is not None else item['assets'].keys()
-
+    
     _item = deepcopy(item)
 
     for a in assets:
+        url = item['assets'][a]['href']
+
+        if predicate and not predicate(item['assets'][a]):
+            logger.debug("asset filtered [url=%s]", url)
+            continue
+
         # download each asset
         url = item['assets'][a]['href']
         logger.debug(f"Downloading {url}")

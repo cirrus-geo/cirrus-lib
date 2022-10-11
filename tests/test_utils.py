@@ -117,6 +117,34 @@ def test_delete_from_queue(sqs, queue):
     msg = sqs.receive_message(
         QueueUrl=queue,
         )['Messages'][0]
-    print(msg)
     msg['eventSourceARN'] = arn
     utils.delete_from_queue(msg)
+
+
+def test_delete_from_queue_lowercase(sqs, queue):
+    arn = 'arn:aws:sqs:us-east-1:123456789012:test-queue'
+    sqs.send_message(
+        QueueUrl=queue,
+        MessageBody='test',
+    )
+    msg = sqs.receive_message(
+        QueueUrl=queue,
+        )['Messages'][0]
+    msg['receiptHandle'] = msg.pop('ReceiptHandle')
+    msg['eventSourceARN'] = arn
+    utils.delete_from_queue(msg)
+
+
+def test_delete_from_queue_bad_message(sqs, queue):
+    arn = 'arn:aws:sqs:us-east-1:123456789012:test-queue'
+    sqs.send_message(
+        QueueUrl=queue,
+        MessageBody='test',
+    )
+    msg = sqs.receive_message(
+        QueueUrl=queue,
+        )['Messages'][0]
+    del msg['ReceiptHandle']
+    msg['eventSourceARN'] = arn
+    with pytest.raises(ValueError):
+        utils.delete_from_queue(msg)

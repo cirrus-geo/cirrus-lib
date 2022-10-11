@@ -215,7 +215,15 @@ def get_queue_url(message):
 
 
 def delete_from_queue(message):
+    receipt_handle = None
+    for key in ('receiptHandle', 'ReceiptHandle'):
+        receipt_handle = message.get(key)
+        if receipt_handle is not None:
+            break
+    else:
+        raise ValueError('Message does not have a [rR]eceiptHandle: {message}')
+
     get_sqs_client().delete_message(
         QueueUrl=get_queue_url(message),
-        ReceiptHandle=message.get('receiptHandle', message['ReceiptHandle']),
+        ReceiptHandle=receipt_handle,
     )

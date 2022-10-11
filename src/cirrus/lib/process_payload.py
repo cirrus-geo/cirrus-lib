@@ -33,6 +33,10 @@ stepfunctions = boto3.client('stepfunctions')
 logger = logging.getLogger(__name__)
 
 
+class TerminalFailure(Exception):
+    pass
+
+
 class ProcessPayload(dict):
 
     def __init__(self, *args, update=False, state_item=None, **kwargs):
@@ -417,7 +421,19 @@ class ProcessPayload(dict):
         except statedb.db.meta.client.exceptions.ConditionalCheckFailedException:
             self.logger.warning('Already in PROCESSING state')
             return None
+        except stepfunctions.exceptions.StateMachineDoesNotExist as e:
+            # This failure is tracked in the DB and we raise an error
+            # so we can handle it specifically, to keep the payload
+            # falling through to the DLQ and alerting.
+            logger.error(e)
+            statedb.set_failed(self['id'], str(e))
+            raise TerminalFailure()
         except Exception as err:
+            # This case should be like the above, except we don't know
+            # why it happened. We'll be conservative and not raise a
+            # terminal failure, so it will get retried in case it was
+            # a transient failure. If we find terminal failures handled
+            # here, we should add terminal exception handlers for them.
             msg = f"failed starting workflow ({err})"
             self.logger.exception(msg)
             statedb.set_failed(self['id'], msg)
@@ -516,7 +532,12 @@ class ProcessPayloads(object):
     def process(self, replace=False):
         """Create Item in Cirrus State DB for each ProcessPayload and add to processing queue
         """
-        payload_ids = []
+        payload_ids = {
+            'started': [],
+            'skipped': [],
+            'dropped': [],
+            'failed': [],
+        }
         # check existing states
         states = self.get_states()
 
@@ -526,14 +547,26 @@ class ProcessPayloads(object):
             # check existing state for Item, if any
             state = states.get(payload['id'], '')
 
-            if payload['id'] in payload_ids:
+            if (
+                payload['id'] in payload_ids['started']
+                or payload['id'] in payload_ids['skipped']
+                or payload['id'] in payload_ids['failed']
+            ):
                 logger.warning(f"Dropping duplicated payload {payload['id']}")
+                payload_ids['dropped'].append(payload['id'])
             elif state in ['FAILED', 'ABORTED', ''] or _replace:
-                payload_id = payload()
+                try:
+                    payload_id = payload()
+                except TerminalFailure:
+                    payload_ids['failed'].append(payload['id'])
+
                 if payload_id is not None:
-                    payload_ids.append(payload_id)
+                    payload_ids['started'].append(payload_id)
+                else:
+                    payload_ids['skipped'].append(payload['id'])
             else:
                 logger.info(f"Skipping {payload['id']}, input already in {state} state")
+                payload_ids['skipped'].append(payload['id'])
                 continue
 
         return payload_ids

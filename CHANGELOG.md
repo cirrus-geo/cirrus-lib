@@ -6,10 +6,22 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 
+
+## [v0.8.1] - 2022-11-2
+
 ### Added
 
-* Added `predicate=` option to `transfer.download_item_assets`, allowing a function to 
-determine which assets to download
+* Added `predicate=` option to `transfer.download_item_assets`, allowing a
+  function to determine which assets to download ([#55])
+
+### Changed
+
+* boto3utils minimum version 0.3.3
+
+### Fixed
+
+* statedb bug for paged queries using secondary index ([#58])
+
 
 ## [v0.8.0] - 2022-09-12
 
@@ -275,10 +287,12 @@ Initial Release
 [#38]: https://github.com/cirrus-geo/cirrus-lib/pull/38
 [#41]: https://github.com/cirrus-geo/cirrus-lib/pull/41
 [#49]: https://github.com/cirrus-geo/cirrus-lib/pull/49
+[#55]: https://github.com/cirrus-geo/cirrus-lib/pull/55
 
 [#44]: https://github.com/cirrus-geo/cirrus-lib/issues/44
 [#51]: https://github.com/cirrus-geo/cirrus-lib/issues/51
 [#53]: https://github.com/cirrus-geo/cirrus-lib/issues/53
+[#58]: https://github.com/cirrus-geo/cirrus-lib/issues/58
 
 [c919fad]: https://github.com/cirrus-geo/cirrus-lib/commit/c919fadb83bb4f5cdfd082d482e25975ce12aa2c
 [02ff5e3]: https://github.com/cirrus-geo/cirrus-lib/commit/02ff5e33412026b1fedda97727eef66715a27492

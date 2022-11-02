@@ -36,5 +36,5 @@ def sqs(aws_credentials):
 
 @pytest.fixture
 def dynamo(aws_credentials):
-    with moto.mock_dynamodb2():
+    with moto.mock_dynamodb():
         yield boto3.client('dynamodb', region_name='us-east-1')

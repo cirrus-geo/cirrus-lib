@@ -1,5 +1,4 @@
 # import moto before any boto3 module
-from moto import mock_dynamodb2
 import boto3
 import inspect
 import json

@@ -87,19 +87,19 @@ def download_item_assets(item: Dict, path: str='', assets: Optional[List[str]]=N
         assets (Optional[List[str]], optional): List of asset keys to download. Defaults to all assets
         s3_session (s3, optional): boto3-utils s3 object for s3 interactions. Defaults to None
         predicate (Callable[[Dict], bool], optional): a predicate function used to filter which assets are to be downloaded.
-        
+
     If both the `assets` and the `predicate` function are specified, the predicate will be applied to the list
     of assets.
-    
+
     The predicate will not remove the filtered assets, rather they will remain in the item, but with their original URLs.
-    
+
     Returns:
         Dict: A new STAC Item with downloaded assets pointing to newly downloaded files
     """
 
     # if assets not provided, download all assets
     assets = assets if assets is not None else item['assets'].keys()
-    
+
     _item = deepcopy(item)
 
     for a in assets:
@@ -109,8 +109,6 @@ def download_item_assets(item: Dict, path: str='', assets: Optional[List[str]]=N
             logger.debug("asset filtered [url=%s]", url)
             continue
 
-        # download each asset
-        url = item['assets'][a]['href']
         logger.debug(f"Downloading {url}")
 
         # http URL to s3 source
